@@ -33,6 +33,12 @@ export default function Header() {
       setActiveCategory('/');
     } else if (category) {
       setActiveCategory(`/?category=${category}`);
+    } else if (location.startsWith('/article')) {
+      // Keep the last active category when viewing an article
+      // This helps maintain context of where the user came from
+    } else {
+      // For other pages like privacy policy, etc., don't highlight any nav item
+      setActiveCategory('');
     }
   }, [location]);
 

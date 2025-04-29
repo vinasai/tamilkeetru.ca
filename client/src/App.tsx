@@ -11,6 +11,10 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import ManageArticles from "@/pages/admin/manage-articles";
 import CreateArticle from "@/pages/admin/create-article";
 import ManageCategories from "@/pages/admin/manage-categories";
+import PrivacyPolicyPage from "@/pages/privacy-policy";
+import TermsOfServicePage from "@/pages/terms-of-service";
+import CookiesPolicyPage from "@/pages/cookies-policy";
+import SitemapPage from "@/pages/sitemap";
 import Header from "@/components/layout/header";
 import Footer from "@/components/layout/footer";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -22,6 +26,10 @@ function Router() {
       <Route path="/" component={HomePage} />
       <Route path="/article/:slug" component={ArticlePage} />
       <Route path="/auth" component={AuthPage} />
+      <Route path="/privacy-policy" component={PrivacyPolicyPage} />
+      <Route path="/terms-of-service" component={TermsOfServicePage} />
+      <Route path="/cookies-policy" component={CookiesPolicyPage} />
+      <Route path="/sitemap" component={SitemapPage} />
       <ProtectedRoute path="/admin" component={AdminDashboard} />
       <ProtectedRoute path="/admin/articles" component={ManageArticles} />
       <ProtectedRoute path="/admin/articles/create" component={CreateArticle} />
