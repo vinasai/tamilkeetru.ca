@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -20,7 +20,21 @@ import {
 export default function Header() {
   const { user, logoutMutation } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const [activeCategory, setActiveCategory] = useState('/');
+
+  // Update active category based on URL
+  useEffect(() => {
+    // Extract category from URL if present
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const category = urlParams.get('category');
+    
+    if (location === '/') {
+      setActiveCategory('/');
+    } else if (category) {
+      setActiveCategory(`/?category=${category}`);
+    }
+  }, [location]);
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -39,7 +53,7 @@ export default function Header() {
 
   const categories = [
     { name: "HOME", path: "/" },
-    { name: "NEWS", path: "/?category=news" },
+    { name: "POLITICS", path: "/?category=politics" },
     { name: "SPORTS", path: "/?category=sports" },
     { name: "BUSINESS", path: "/?category=business" },
     { name: "ENTERTAINMENT", path: "/?category=entertainment" },
@@ -58,8 +72,81 @@ export default function Header() {
             <span className="hidden md:inline">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </span>
-            <Link href="#" className="hover:underline text-white">Subscribe</Link>
-            <Link href="#" className="hover:underline text-white">Newsletter</Link>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="hover:underline text-white">Subscribe</button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Subscribe to Daily News</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <p className="text-gray-600 mb-4">Get exclusive access to premium content and special offers.</p>
+                  <div className="space-y-4">
+                    <div className="bg-gray-100 p-4 rounded-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-bold">Monthly Plan</h3>
+                        <span className="font-bold text-secondary">$9.99/month</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">Unlimited access to all content with no long-term commitment.</p>
+                      <Button className="w-full bg-secondary text-white">Subscribe Monthly</Button>
+                    </div>
+                    <div className="bg-gray-100 p-4 rounded-md border-2 border-secondary">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="font-bold">Annual Plan</h3>
+                        <div>
+                          <span className="font-bold text-secondary">$89.99/year</span>
+                          <span className="text-xs bg-secondary text-white px-2 py-1 rounded-full ml-2">SAVE 25%</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3">Our best value plan with significant savings.</p>
+                      <Button className="w-full bg-secondary text-white">Subscribe Annually</Button>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <button className="hover:underline text-white">Newsletter</button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Subscribe to Our Newsletter</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <p className="text-gray-600 mb-4">Get the latest news and updates delivered straight to your inbox.</p>
+                  <form className="space-y-4">
+                    <div className="space-y-2">
+                      <label htmlFor="newsletter-name" className="block text-sm font-medium">Full Name</label>
+                      <Input id="newsletter-name" placeholder="Your name" />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="newsletter-email" className="block text-sm font-medium">Email</label>
+                      <Input id="newsletter-email" type="email" placeholder="Your email address" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Interests (Optional)</label>
+                      <div className="flex flex-wrap gap-2">
+                        {categories.slice(1).map((category, index) => (
+                          <label key={index} className="flex items-center space-x-2 text-sm">
+                            <input type="checkbox" className="rounded text-secondary" />
+                            <span>{category.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="pt-2">
+                      <Button type="submit" className="w-full bg-secondary text-white">Subscribe</Button>
+                    </div>
+                    <p className="text-xs text-gray-500 text-center">
+                      By subscribing, you agree to our privacy policy and terms of service.
+                    </p>
+                  </form>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           <div className="flex space-x-4">
             <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-facebook-f"></i></a>
@@ -123,7 +210,12 @@ export default function Header() {
               <ul className="font-['Roboto_Condensed'] font-semibold">
                 {categories.map((category, index) => (
                   <li key={index}>
-                    <Link href={category.path} className="block py-3 px-4 border-b border-gray-200 hover:bg-gray-100">
+                    <Link 
+                      href={category.path} 
+                      className={`block py-3 px-4 border-b border-gray-200 hover:bg-gray-100 ${
+                        activeCategory === category.path ? 'text-secondary' : ''
+                      }`}
+                    >
                       {category.name}
                     </Link>
                   </li>
@@ -206,7 +298,9 @@ export default function Header() {
               <li key={index}>
                 <Link 
                   href={category.path} 
-                  className="inline-block py-3 px-3 hover:text-secondary"
+                  className={`inline-block py-3 px-3 hover:text-secondary transition-colors ${
+                    activeCategory === category.path ? 'text-secondary' : ''
+                  }`}
                 >
                   {category.name}
                 </Link>

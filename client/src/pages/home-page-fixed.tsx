@@ -145,16 +145,6 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Advertisement Banner - only on homepage */}
-        {!categorySlug && !searchQuery && (
-          <div className="mb-8 bg-gray-200 rounded-md p-3 text-center">
-            <div className="border border-dashed border-gray-400 py-8 px-4">
-              <p className="text-gray-500 font-bold text-lg">ADVERTISEMENT</p>
-              <p className="text-gray-500 text-sm">728x90 Banner Ad</p>
-            </div>
-          </div>
-        )}
-
         {/* Main Content Layout - only on homepage */}
         {!categorySlug && !searchQuery && (
           <>
