@@ -57,40 +57,52 @@ export default function NewsletterForm() {
   return (
     <div className="bg-white rounded-md shadow-md p-4 mb-6">
       <h3 className="font-bold font-['Roboto_Condensed'] text-lg mb-3 pb-2 border-b border-gray-200">
-        NEWSLETTER
+        STAY INFORMED
       </h3>
-      <p className="text-gray-600 mb-3 text-sm">Stay updated with our daily digest of top stories.</p>
-      <form className="space-y-3" onSubmit={handleSubmit}>
-        <Input 
-          type="email" 
-          placeholder="Your email address" 
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={isSubmitting}
-        />
+      <p className="text-gray-600 mb-4 text-sm">Get breaking news and exclusive stories delivered directly to your inbox.</p>
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <div className="relative">
+          <Input 
+            type="email" 
+            placeholder="Your email address" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={isSubmitting}
+            className="pl-10 bg-gray-50 border-gray-200 focus:border-secondary focus:ring-1 focus:ring-secondary placeholder:text-gray-400 text-gray-700"
+          />
+          <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            <i className="far fa-envelope"></i>
+          </div>
+        </div>
+        
         <div className="flex items-start">
           <Checkbox 
             id="newsletter-terms" 
             checked={agreeToTerms}
             onCheckedChange={(checked) => setAgreeToTerms(checked === true)}
             disabled={isSubmitting}
-            className="mt-1 mr-2"
+            className="mt-1 mr-2 text-secondary focus:ring-secondary"
           />
-          <Label htmlFor="newsletter-terms" className="text-xs text-gray-500">
-            I agree to receive news and promotional emails
+          <Label htmlFor="newsletter-terms" className="text-xs text-gray-500 leading-tight">
+            I agree to receive news and promotional emails from Daily News and accept the <a href="/privacy-policy" className="text-secondary hover:underline">privacy policy</a>
           </Label>
         </div>
+        
         <Button 
           type="submit" 
-          className="w-full bg-secondary text-white"
+          className="w-full bg-secondary hover:bg-secondary/90 text-white font-semibold py-2"
           disabled={isSubmitting}
         >
           {isSubmitting ? (
             <><i className="fas fa-spinner fa-spin mr-2"></i>Subscribing...</>
           ) : (
-            'Subscribe'
+            'SUBSCRIBE NOW'
           )}
         </Button>
+        
+        <p className="text-center text-xs text-gray-500">
+          No spam, unsubscribe anytime
+        </p>
       </form>
     </div>
   );
