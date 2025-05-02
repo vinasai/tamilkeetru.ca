@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Category, Article, insertArticleSchema } from "@shared/schema";
+import { Category, Article, insertArticleSchema, User } from "@shared/schema";
 import { 
   Card, 
   CardContent, 
@@ -36,6 +36,16 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { Link } from "wouter";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 // Extend the insert schema with client-side validations
 const formSchema = insertArticleSchema.extend({
@@ -54,17 +64,36 @@ export default function CreateArticle() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isEditMode = !!id;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+  const editorRef = useRef<any>(null);
 
   // Fetch categories
   const { data: categories, isLoading: isCategoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
+  // Fetch users for author selection
+  const { data: users, isLoading: isUsersLoading } = useQuery<User[]>({
+    queryKey: ["/api/users"],
+    enabled: user?.isAdmin // Only load users if current user is admin
+  });
+
   // Fetch article data if in edit mode
   const { data: article, isLoading: isArticleLoading } = useQuery<Article>({
     queryKey: [`/api/articles/${id}`],
     enabled: isEditMode,
+    refetchOnMount: true,
+    staleTime: 0 // Consider data stale immediately
   });
+
+  useEffect(() => {
+    if (article) {
+      console.log("Loaded article:", article);
+    }
+  }, [article]);
+
+
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -120,6 +149,9 @@ export default function CreateArticle() {
           title: "Article updated",
           description: "The article has been successfully updated.",
         });
+        
+        // Invalidate the specific article query
+        queryClient.invalidateQueries({ queryKey: [`/api/articles/${article.id}`] });
       } else {
         // Create new article
         await apiRequest("POST", "/api/articles", values);
@@ -129,8 +161,9 @@ export default function CreateArticle() {
         });
       }
       
-      // Invalidate queries
+      // Invalidate all article-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/articles/all"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles/featured"] });
       queryClient.invalidateQueries({ queryKey: ["/api/articles/breaking"] });
       
@@ -145,7 +178,7 @@ export default function CreateArticle() {
     }
   };
 
-  if (isCategoriesLoading || (isEditMode && isArticleLoading)) {
+  if (isCategoriesLoading || (isEditMode && isArticleLoading) || (user?.isAdmin && isUsersLoading)) {
     return (
       <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-secondary" />
@@ -155,6 +188,21 @@ export default function CreateArticle() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb */}
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList className="flex-wrap text-sm md:text-base">
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/admin">Dashboard Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Create Article</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold font-['Roboto_Condensed']">
           {isEditMode ? "Edit Article" : "Create New Article"}
@@ -252,14 +300,16 @@ export default function CreateArticle() {
                   <FormItem>
                     <FormLabel>Content</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Full article content" 
-                        {...field} 
-                        rows={12}
+                      <RichTextEditor
+                        initialValue={field.value || ""}
+                        onChange={(value) => {
+                          field.onChange(value);
+                        }}
+                        placeholder="Full article content"
                       />
                     </FormControl>
                     <FormDescription>
-                      The full HTML content of your article
+                      The full content of your article
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -282,23 +332,22 @@ export default function CreateArticle() {
                       URL to the main image for this article
                     </FormDescription>
                     <FormMessage />
+                    {field.value && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium mb-1">Preview:</p>
+                        <img 
+                          src={field.value} 
+                          alt="Cover preview" 
+                          className="max-h-40 rounded border"
+                          onError={(e) => {
+                            e.currentTarget.src = "https://placehold.co/600x400?text=Invalid+Image+URL";
+                          }}
+                        />
+                      </div>
+                    )}
                   </FormItem>
                 )}
               />
-
-              {field => field.value && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium mb-1">Preview:</p>
-                  <img 
-                    src={form.watch("coverImage")} 
-                    alt="Cover preview" 
-                    className="max-h-40 rounded border"
-                    onError={(e) => {
-                      e.currentTarget.src = "https://placehold.co/600x400?text=Invalid+Image+URL";
-                    }}
-                  />
-                </div>
-              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
@@ -339,11 +388,40 @@ export default function CreateArticle() {
                     <FormItem>
                       <FormLabel>Author</FormLabel>
                       <FormControl>
-                        <Input 
-                          value={user?.username || ""} 
-                          disabled 
-                        />
+                        {user?.isAdmin ? (
+                          <Select 
+                            onValueChange={(value) => field.onChange(parseInt(value))}
+                            value={field.value ? field.value.toString() : user?.id?.toString()}
+                            defaultValue={user?.id?.toString()}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select an author" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {users?.map((author) => (
+                                <SelectItem 
+                                  key={author.id} 
+                                  value={author.id.toString()}
+                                >
+                                  {author.username}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input 
+                            value={user?.username || ""} 
+                            disabled 
+                          />
+                        )}
                       </FormControl>
+                      <FormDescription>
+                        {user?.isAdmin 
+                          ? "Select the author for this article" 
+                          : "Articles are published under your username"}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

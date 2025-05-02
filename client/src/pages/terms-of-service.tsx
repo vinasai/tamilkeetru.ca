@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export default function TermsOfServicePage() {
   useEffect(() => {
-    document.title = "Terms of Service - Daily News";
+    document.title = "Terms of Service - Tamil Keetru";
   }, []);
 
   return (
@@ -16,14 +16,14 @@ export default function TermsOfServicePage() {
           <div className="prose max-w-none">
             <h2 className="text-xl font-bold mt-8 mb-4">1. Introduction</h2>
             <p>
-              Welcome to Daily News. These terms and conditions outline the rules and regulations for the use of our website.
+              Welcome to Tamil Keetru. These terms and conditions outline the rules and regulations for the use of our website.
               By accessing this website, we assume you accept these terms and conditions in full. Do not continue to use 
-              Daily News if you do not accept all of the terms and conditions stated on this page.
+              Tamil Keetru if you do not accept all of the terms and conditions stated on this page.
             </p>
             
             <h2 className="text-xl font-bold mt-8 mb-4">2. License to Use</h2>
             <p>
-              Unless otherwise stated, Daily News and/or its licensors own the intellectual property rights for all material on Daily News.
+              Unless otherwise stated, Tamil Keetru and/or its licensors own the intellectual property rights for all material on Tamil Keetru.
               All intellectual property rights are reserved. You may view and/or print pages from our website for your own personal use 
               subject to restrictions set in these terms and conditions.
             </p>
@@ -32,18 +32,18 @@ export default function TermsOfServicePage() {
               <li>Republish material from our website</li>
               <li>Sell, rent, or sub-license material from our website</li>
               <li>Reproduce, duplicate, or copy material from our website</li>
-              <li>Redistribute content from Daily News (unless content is specifically made for redistribution)</li>
+              <li>Redistribute content from Tamil Keetru (unless content is specifically made for redistribution)</li>
             </ul>
             
             <h2 className="text-xl font-bold mt-8 mb-4">3. User Comments</h2>
             <p>
               Certain parts of this website offer the opportunity for users to post and exchange opinions, information, material, and data.
-              Daily News does not screen, edit, publish or review Comments prior to their appearance on the website and Comments do not
-              reflect the views or opinions of Daily News, its agents, or affiliates. Comments reflect the view and opinion of the person
+              Tamil Keetru does not screen, edit, publish or review Comments prior to their appearance on the website and Comments do not
+              reflect the views or opinions of Tamil Keetru, its agents, or affiliates. Comments reflect the view and opinion of the person
               who posts such view or opinion.
             </p>
             <p className="mt-4">
-              You hereby grant Daily News a non-exclusive license to use, reproduce, edit and authorize others to use, reproduce and
+              You hereby grant Tamil Keetru a non-exclusive license to use, reproduce, edit and authorize others to use, reproduce and
               edit any of your Comments in any and all forms, formats, or media.
             </p>
             
@@ -51,7 +51,7 @@ export default function TermsOfServicePage() {
             <p>
               If you create an account on our website, you are responsible for maintaining the security of your account, and you are
               fully responsible for all activities that occur under the account and any other actions taken in connection with the account.
-              You must immediately notify Daily News of any unauthorized uses of your account or any other breaches of security.
+              You must immediately notify Tamil Keetru of any unauthorized uses of your account or any other breaches of security.
             </p>
             
             <h2 className="text-xl font-bold mt-8 mb-4">5. Content Liability</h2>

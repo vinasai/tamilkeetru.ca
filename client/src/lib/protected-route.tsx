@@ -21,7 +21,17 @@ export function ProtectedRoute({
     );
   }
 
-  if (!user || !user.isAdmin) {
+  // For admin routes, check if the user is an admin
+  if (path.startsWith('/admin') && (!user || !user.isAdmin)) {
+    return (
+      <Route path={path}>
+        <Redirect to="/auth" />
+      </Route>
+    );
+  }
+  
+  // For non-admin routes, just check if the user is logged in
+  if (!user) {
     return (
       <Route path={path}>
         <Redirect to="/auth" />

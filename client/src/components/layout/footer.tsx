@@ -64,7 +64,7 @@ export default function Footer() {
   return (
     <footer className="bg-white text-darkText pt-16 pb-6 border-t border-gray-200 shadow-sm">
       {/* Newsletter Banner */}
-      <div className="container mx-auto px-4 mb-12">
+      <div className="container mx-auto  mb-12">
         <div className="bg-secondary rounded-lg p-6 md:p-8 flex flex-col md:flex-row items-center justify-between">
           <div className="mb-6 md:mb-0 md:mr-8 text-center md:text-left">
             <h3 className="text-xl md:text-2xl font-bold font-['Roboto_Condensed'] mb-2 text-white">SUBSCRIBE TO OUR NEWSLETTER</h3>
@@ -96,18 +96,18 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           <div>
             <div className="mb-6">
-              <Link href="/" className="text-darkText font-bold text-3xl font-['Roboto_Condensed'] flex items-center">
-                <img src="/logo.png" alt="Daily News Logo" className="h-10 mr-2" />
-                DAILY NEWS
+              <Link href="/" className="text-secondary font-bold text-3xl font-['Roboto_Condensed'] flex items-center">
+                 {/* <img src="/logo.png" alt="Tamil Keetru Logo" className="h-10 mr-2" /> */}
+                Tamil Keetru
               </Link>
             </div>
             <p className="text-gray-600 text-sm mb-6">
-              Daily News delivers timely, accurate reporting on the stories that matter most. 
+              Tamil Keetru delivers timely, accurate reporting on the stories that matter most. 
               Our team of dedicated journalists work around the clock to bring you 
               independent, trustworthy news coverage.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-colors hover:bg-secondary hover:text-white">
+              {/* <a href="#" className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-colors hover:bg-secondary hover:text-white">
                 <i className="fab fa-facebook-f"></i>
               </a>
               <a href="#" className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-colors hover:bg-secondary hover:text-white">
@@ -115,8 +115,8 @@ export default function Footer() {
               </a>
               <a href="#" className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-colors hover:bg-secondary hover:text-white">
                 <i className="fab fa-instagram"></i>
-              </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-colors hover:bg-secondary hover:text-white">
+              </a> */}
+              <a href="https://www.youtube.com/@Tamilkeetru25" className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-colors hover:bg-secondary hover:text-white">
                 <i className="fab fa-youtube"></i>
               </a>
             </div>
@@ -166,7 +166,7 @@ export default function Footer() {
               ))}
             </ul>
             
-            <h4 className="text-lg font-bold font-['Roboto_Condensed'] mt-8 mb-6 relative text-darkText">
+            {/* <h4 className="text-lg font-bold font-['Roboto_Condensed'] mt-8 mb-6 relative text-darkText">
               <span className="inline-block border-b-2 border-secondary pb-2">QUICK LINKS</span>
             </h4>
             <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -181,7 +181,7 @@ export default function Footer() {
                   </Link>
                 </li>
               ))}
-            </ul>
+            </ul> */}
           </div>
           
           <div>
@@ -189,7 +189,7 @@ export default function Footer() {
               <span className="inline-block border-b-2 border-secondary pb-2">CONTACT US</span>
             </h4>
             <address className="text-sm text-gray-600 not-italic space-y-4 mb-6">
-              <div className="flex">
+              {/* <div className="flex">
                 <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3 flex-shrink-0">
                   <i className="fas fa-map-marker-alt text-secondary"></i>
                 </div>
@@ -197,28 +197,26 @@ export default function Footer() {
                   <p>123 News Street, Downtown</p>
                   <p>Cityville, NY 10001</p>
                 </div>
-              </div>
-              <div className="flex">
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3 flex-shrink-0">
+              </div> */}
+              <div className="flex items-center">
+                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center mr-3 flex-shrink-0">
                   <i className="fas fa-phone-alt text-secondary"></i>
                 </div>
                 <div>
-                  <p>Newsroom: (123) 456-7890</p>
-                  <p>Support: (123) 456-7891</p>
+                  <p>Support: +1 (416) 633-3628</p>
                 </div>
               </div>
-              <div className="flex">
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3 flex-shrink-0">
+              <div className="flex items-center">
+                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center mr-3 flex-shrink-0">
                   <i className="fas fa-envelope text-secondary"></i>
                 </div>
-                <div>
-                  <p>contact@dailynews.com</p>
-                  <p>advertise@dailynews.com</p>
+                <div>     
+                  <p>info@vinasai.ca</p>
                 </div>
               </div>
             </address>
             
-            <div className="bg-gray-100 p-4 rounded-lg">
+            {/* <div className="bg-gray-100 p-4 rounded-lg">
               <h5 className="text-sm font-semibold mb-3 text-darkText">MOBILE APP</h5>
               <div className="flex space-x-3">
                 <a href="#" className="bg-gray-200 text-gray-700 hover:bg-secondary hover:text-white transition-colors p-2 rounded flex items-center">
@@ -236,13 +234,13 @@ export default function Footer() {
                   </div>
                 </a>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
         
         {/* Bottom Footer */}
         <div className="pt-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center text-sm text-gray-600">
-          <p>© {new Date().getFullYear()} Daily News. All Rights Reserved.</p>
+          <p>© {new Date().getFullYear()} Tamil Keetru. All Rights Reserved.</p>
           <div className="mt-4 md:mt-0 flex flex-wrap gap-x-6 gap-y-2 justify-center">
             <Link href="/privacy-policy" className="text-darkText hover:text-secondary transition-colors">Privacy Policy</Link>
             <Link href="/terms-of-service" className="text-darkText hover:text-secondary transition-colors">Terms of Service</Link>

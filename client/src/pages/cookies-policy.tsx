@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export default function CookiesPolicyPage() {
   useEffect(() => {
-    document.title = "Cookies Policy - Daily News";
+    document.title = "Cookies Policy - Tamil Keetru";
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Bold, Italic, List, Heading, Link as LinkIcon, Image as ImageIcon } from 'lucide-react';
@@ -15,7 +15,11 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   placeholder = 'Write your content here...'
 }) => {
   const [value, setValue] = useState(initialValue);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setValue(initialValue || '');
+  }, [initialValue]);
 
   const insertTag = (startTag: string, endTag: string = '') => {
     if (!textareaRef.current) return;

@@ -1,5 +1,5 @@
 import { useAuth } from "@/hooks/use-auth";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,31 +16,50 @@ import {
   DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useScrollTop } from "@/hooks/use-scroll-top";
 
 export default function Header() {
   const { user, logoutMutation } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [location, navigate] = useLocation();
+  const search = useSearch();
   const [activeCategory, setActiveCategory] = useState('/');
 
-  // Update active category based on URL
+  // Use the scroll to top hook
+  useScrollTop();
+
+  // Update active category based on URL from wouter
   useEffect(() => {
-    // Extract category from URL if present
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const urlParams = new URLSearchParams(search);
     const category = urlParams.get('category');
-    
+    const searchQuery = urlParams.get('search');
+
+    console.log("Header useEffect - location:", location, "search:", search, "category:", category, "searchQuery:", searchQuery);
+
     if (location === '/') {
-      setActiveCategory('/');
-    } else if (category) {
-      setActiveCategory(`/?category=${category}`);
+      if (category) {
+        setActiveCategory(`/?category=${category}`);
+      } else if (searchQuery) {
+        setActiveCategory('');
+      } else {
+        setActiveCategory('/');
+      }
     } else if (location.startsWith('/article')) {
-      // Keep the last active category when viewing an article
-      // This helps maintain context of where the user came from
+      // Keep the previously set activeCategory (do nothing here)
+      // Or determine based on article data if available/needed
     } else {
-      // For other pages like privacy policy, etc., don't highlight any nav item
+      // Other pages (e.g., /auth, /profile)
       setActiveCategory('');
     }
-  }, [location]);
+  }, [location, search]);
 
   const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -48,7 +67,8 @@ export default function Header() {
     const query = formData.get('search')?.toString();
     if (query) {
       setIsSearchOpen(false);
-      navigate(`/?search=${encodeURIComponent(query)}`);
+      const newSearchQuery = `search=${encodeURIComponent(query)}`;
+      navigate(`/?${newSearchQuery}`, { replace: true });
     }
   };
 
@@ -84,7 +104,7 @@ export default function Header() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Subscribe to Daily News</DialogTitle>
+                  <DialogTitle>Subscribe to Tamil Keetru</DialogTitle>
                 </DialogHeader>
                 <div className="py-4">
                   <p className="text-gray-600 mb-4">Get exclusive access to premium content and special offers.</p>
@@ -155,10 +175,10 @@ export default function Header() {
             </Dialog>
           </div>
           <div className="flex space-x-4">
-            <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-facebook-f"></i></a>
+            {/* <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-facebook-f"></i></a>
             <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-twitter"></i></a>
-            <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-instagram"></i></a>
-            <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-youtube"></i></a>
+            <a href="#" className="text-white hover:text-gray-200"><i className="fab fa-instagram"></i></a> */}
+            <a href="https://www.youtube.com/@Tamilkeetru25" className="text-white hover:text-gray-200"><i className="fab fa-youtube"></i></a>
           </div>
         </div>
       </div>
@@ -172,11 +192,11 @@ export default function Header() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[300px] p-0">
-            <div className="p-4 border-b border-gray-200">
+            <div className="p-4 pt-14 border-b border-gray-200">
               <form className="flex">
                 <Input type="text" placeholder="Search..." className="mr-2" />
                 <Button type="submit" className="bg-secondary text-white">
-                  <i className="fas fa-search"></i>
+                  <i className="fas fa-search flex items-center justify-center"></i>
                 </Button>
               </form>
             </div>
@@ -184,13 +204,24 @@ export default function Header() {
               {user ? (
                 <div className="space-y-2">
                   <div className="font-medium">{user.username}</div>
-                  {user.isAdmin && (
+                  {user.isAdmin ? (
                     <Link href="/admin">
                       <Button variant="outline" className="w-full text-left justify-start">
                         <i className="fas fa-cog mr-2"></i> Admin Dashboard
                       </Button>
                     </Link>
+                  ) : (
+                    <Link href="/client-dashboard">
+                      <Button variant="outline" className="w-full text-left justify-start">
+                        <i className="fas fa-user-circle mr-2"></i> My Dashboard
+                      </Button>
+                    </Link>
                   )}
+                  <Link href="/profile">
+                    <Button variant="outline" className="w-full text-left justify-start">
+                      <i className="fas fa-user-edit mr-2"></i> Edit Profile
+                    </Button>
+                  </Link>
                   <Button 
                     onClick={handleLogout} 
                     className="w-full bg-secondary text-white"
@@ -216,11 +247,15 @@ export default function Header() {
               <ul className="font-['Roboto_Condensed'] font-semibold">
                 {categories.map((category, index) => (
                   <li key={index}>
-                    <Link 
-                      href={category.path} 
+                    <Link
+                      href={category.path}
                       className={`block py-3 px-4 border-b border-gray-200 hover:bg-gray-100 ${
                         activeCategory === category.path ? 'text-secondary' : ''
                       }`}
+                      onClick={() => {
+                        navigate(category.path, { replace: true });
+                        window.scrollTo(0, 0);
+                      }}
                     >
                       {category.name}
                     </Link>
@@ -231,8 +266,8 @@ export default function Header() {
           </SheetContent>
         </Sheet>
         
-        <Link href="/" className="text-secondary font-bold text-3xl md:text-4xl font-['Roboto_Condensed']">
-          DAILY NEWS
+        <Link href="/" className="text-secondary font-bold text-3xl md:text-4xl mr-10 font-['Roboto_Condensed']">
+          Tamil Keetru
         </Link>
         
         <div className="flex items-center space-x-3">
@@ -244,7 +279,7 @@ export default function Header() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>Search Daily News</DialogTitle>
+                <DialogTitle>Search Tamil Keetru</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSearchSubmit} className="mt-4">
                 <div className="flex">
@@ -261,10 +296,10 @@ export default function Header() {
                 <div className="mt-4">
                   <h3 className="font-medium mb-2">Popular Searches:</h3>
                   <div className="flex flex-wrap gap-2">
-                    <Link href="/?search=Politics" onClick={() => setIsSearchOpen(false)} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Politics</Link>
-                    <Link href="/?search=Sports" onClick={() => setIsSearchOpen(false)} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Sports</Link>
-                    <Link href="/?search=Economy" onClick={() => setIsSearchOpen(false)} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Economy</Link>
-                    <Link href="/?search=Climate" onClick={() => setIsSearchOpen(false)} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Climate Change</Link>
+                    <button type="button" onClick={() => { setIsSearchOpen(false); navigate('/?search=Politics', { replace: true }); }} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Politics</button>
+                    <button type="button" onClick={() => { setIsSearchOpen(false); navigate('/?search=Sports', { replace: true }); }} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Sports</button>
+                    <button type="button" onClick={() => { setIsSearchOpen(false); navigate('/?search=Economy', { replace: true }); }} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Economy</button>
+                    <button type="button" onClick={() => { setIsSearchOpen(false); navigate('/?search=Climate+Change', { replace: true }); }} className="px-3 py-1 bg-gray-200 rounded-full text-sm hover:bg-gray-300">Climate Change</button>
                   </div>
                 </div>
               </form>
@@ -273,20 +308,52 @@ export default function Header() {
           
           {user ? (
             <div className="hidden md:flex items-center gap-2">
-              <span className="text-sm">{user.username}</span>
-              <Button 
-                variant="ghost" 
-                className="text-darkText hover:text-secondary"
-                onClick={handleLogout}
-                disabled={logoutMutation.isPending}
-              >
-                {logoutMutation.isPending ? (
-                  <i className="fas fa-spinner fa-spin mr-1"></i>
-                ) : (
-                  <i className="fas fa-sign-out-alt mr-1"></i>
-                )}
-                Sign Out
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 focus:outline-none">
+                    <Avatar className="h-8 w-8 border border-gray-200">
+                      <AvatarFallback className="bg-secondary text-white">
+                        {user.username.substring(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{user.username}</span>
+                    <i className="fas fa-chevron-down text-xs text-gray-500"></i>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {user.isAdmin ? (
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin" className="cursor-pointer w-full">
+                        <i className="fas fa-cog mr-2"></i> Admin Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem asChild>
+                      <Link href="/client-dashboard" className="cursor-pointer w-full">
+                        <i className="fas fa-user-circle mr-2"></i> My Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer w-full">
+                      <i className="fas fa-user-edit mr-2"></i> Edit Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleLogout} 
+                    disabled={logoutMutation.isPending}
+                    className="cursor-pointer text-red-500 focus:text-red-900"
+                  >
+                    {logoutMutation.isPending ? (
+                      <i className="fas fa-spinner fa-spin mr-2"></i>
+                    ) : (
+                      <i className="fas fa-sign-out-alt mr-2"></i>
+                    )}
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ) : (
             <Link href="/auth" className="hidden md:block text-darkText hover:text-secondary">
@@ -302,11 +369,15 @@ export default function Header() {
           <ul className="flex justify-between items-center text-sm font-['Roboto_Condensed'] font-semibold">
             {categories.map((category, index) => (
               <li key={index}>
-                <Link 
-                  href={category.path} 
+                <Link
+                  href={category.path}
                   className={`inline-block py-3 px-3 hover:text-secondary transition-colors ${
                     activeCategory === category.path ? 'text-secondary' : ''
                   }`}
+                  onClick={() => {
+                    navigate(category.path, { replace: true });
+                    window.scrollTo(0, 0);
+                  }}
                 >
                   {category.name}
                 </Link>

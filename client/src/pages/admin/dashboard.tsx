@@ -14,6 +14,14 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useAuth } from "@/hooks/use-auth";
 import { Article, Category, Comment, Newsletter } from "@shared/schema";
 import { 
@@ -76,6 +84,21 @@ export default function AdminDashboard() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Breadcrumb */}
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList className="flex-wrap text-sm md:text-base">
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href="/admin">Dashboard Home</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Overview</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold font-['Roboto_Condensed']">Admin Dashboard</h1>
         <div className="flex items-center">

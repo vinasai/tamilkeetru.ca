@@ -84,7 +84,7 @@ export default function NewsletterForm() {
             className="mt-1 mr-2 text-secondary focus:ring-secondary"
           />
           <Label htmlFor="newsletter-terms" className="text-xs text-gray-500 leading-tight">
-            I agree to receive news and promotional emails from Daily News and accept the <a href="/privacy-policy" className="text-secondary hover:underline">privacy policy</a>
+            I agree to receive news and promotional emails from Tamil Keetru and accept the <a href="/privacy-policy" className="text-secondary hover:underline">privacy policy</a>
           </Label>
         </div>
         

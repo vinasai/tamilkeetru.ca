@@ -57,7 +57,7 @@ export function AuthWidget() {
           <Button className="flex-1" onClick={() => navigate('/auth')}>Sign In</Button>
           <Button variant="outline" className="flex-1" onClick={() => navigate('/auth?tab=register')}>Register</Button>
         </div>
-        <div className="text-center text-sm text-gray-500">
+        {/* <div className="text-center text-sm text-gray-500">
           <span>Or continue with</span>
           <div className="flex justify-center space-x-3 mt-2">
             <Button variant="outline" size="icon" className="rounded-full bg-[#3b5998] text-white hover:bg-[#3b5998]/90">
@@ -70,7 +70,7 @@ export function AuthWidget() {
               <FaGoogle className="h-4 w-4" />
             </Button>
           </div>
-        </div>
+        </div> */}
       </CardContent>
     </Card>
   );

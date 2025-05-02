@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 export default function PrivacyPolicyPage() {
   useEffect(() => {
-    document.title = "Privacy Policy - Daily News";
+    document.title = "Privacy Policy - Tamil Keetru";
   }, []);
 
   return (
@@ -16,7 +16,7 @@ export default function PrivacyPolicyPage() {
           <div className="prose max-w-none">
             <h2 className="text-xl font-bold mt-8 mb-4">1. Introduction</h2>
             <p>
-              Welcome to Daily News. We respect your privacy and are committed to protecting your personal data. 
+              Welcome to Tamil Keetru. We respect your privacy and are committed to protecting your personal data. 
               This privacy policy will inform you about how we look after your personal data when you visit our website
               and tell you about your privacy rights and how the law protects you.
             </p>
@@ -81,7 +81,7 @@ export default function PrivacyPolicyPage() {
             </div>
             
             <p className="mt-8">
-              We hope this helps clarify how we use your data. Thank you for trusting Daily News.
+              We hope this helps clarify how we use your data. Thank you for trusting Tamil Keetru.
             </p>
           </div>
         </div>

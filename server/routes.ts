@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "./index";
 import { setupAuth } from "./auth";
 import { slugify } from "../shared/utils";
 import { insertArticleSchema, insertCategorySchema, insertCommentSchema, insertNewsletterSchema } from "@shared/schema";
@@ -10,11 +10,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
 
+  // Database health check endpoint
+  app.get("/api/health", async (req, res) => {
+    try {
+      // Use the explicit connection check method if available
+      if (typeof storage.checkConnection === 'function') {
+        const status = await storage.checkConnection();
+        
+        if (status.connected) {
+          res.json({ 
+            status: "ok", 
+            database: "connected",
+            message: "Database is connected and operational"
+          });
+        } else {
+          res.status(503).json({ 
+            status: "error", 
+            database: "disconnected",
+            message: status.error || "Database connection is not available"
+          });
+        }
+      } else {
+        // Fallback for older implementation
+        const isConnected = (storage as any).isConnected;
+        
+        if (isConnected) {
+          res.json({ 
+            status: "ok", 
+            database: "connected",
+            message: "Database is connected and operational"
+          });
+        } else {
+          res.status(503).json({ 
+            status: "error", 
+            database: "disconnected",
+            message: "Database connection is not available"
+          });
+        }
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        status: "error", 
+        database: "unknown",
+        message: "Failed to check database status"
+      });
+    }
+  });
+
   // API Routes
   // Category routes
   app.get("/api/categories", async (req, res) => {
     try {
       const categories = await storage.getCategories();
+      
+      if (categories.length === 0) {
+        return res.status(200).json({
+          status: "empty",
+          message: "No categories found",
+          data: []
+        });
+      }
+      
       res.json(categories);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch categories" });
@@ -81,15 +137,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (search) {
         const articles = await storage.searchArticles(search as string);
+        
+        if (articles.length === 0) {
+          return res.status(200).json({
+            status: "empty",
+            message: `No articles found matching "${search}"`,
+            data: []
+          });
+        }
+        
         return res.json(articles);
       }
       
       if (category) {
         const articles = await storage.getCategoryArticles(category as string);
+        
+        if (articles.length === 0) {
+          return res.status(200).json({
+            status: "empty",
+            message: `No articles found in category "${category}"`,
+            data: []
+          });
+        }
+        
         return res.json(articles);
       }
       
       const articles = await storage.getArticles();
+      
+      if (articles.length === 0) {
+        return res.status(200).json({
+          status: "empty",
+          message: "No articles found",
+          data: []
+        });
+      }
+      
       res.json(articles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch articles" });
@@ -109,6 +192,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
       const articles = await storage.getFeaturedArticles(limit);
+      
+      if (articles.length === 0) {
+        return res.status(200).json({
+          status: "empty",
+          message: "No featured articles found",
+          data: []
+        });
+      }
+      
       res.json(articles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch featured articles" });
@@ -119,6 +211,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
       const articles = await storage.getBreakingArticles(limit);
+      
+      if (articles.length === 0) {
+        return res.status(200).json({
+          status: "empty",
+          message: "No breaking news found",
+          data: []
+        });
+      }
+      
       res.json(articles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch breaking news" });
@@ -129,6 +230,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
       const articles = await storage.getPopularArticles(limit);
+      
+      if (articles.length === 0) {
+        return res.status(200).json({
+          status: "empty",
+          message: "No popular articles found",
+          data: []
+        });
+      }
+      
       res.json(articles);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch popular articles" });
@@ -386,6 +496,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid newsletter data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to subscribe to newsletter" });
+    }
+  });
+
+  app.get("/api/users", async (req, res) => {
+    try {
+      // Only authenticated users can see the user list
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  // Existing endpoint to get a specific user
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      // Only authenticated users can see user details
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(Number(req.params.id));
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't return the password hash
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Endpoint to update user profile
+  app.patch("/api/users/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Only allow users to update their own profile unless they're an admin
+      if (req.user?.id !== Number(req.params.id) && !req.user?.isAdmin) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      
+      // Only allow updating username, email, and password
+      const { username, email, password } = req.body;
+      const updateData: any = {};
+      
+      if (username) updateData.username = username;
+      if (email) updateData.email = email;
+      if (password) updateData.password = password; // Password will be hashed in storage
+      
+      const user = await storage.updateUser(Number(req.params.id), updateData);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't return the password hash
+      const { password: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  // Add this new endpoint after the existing user routes
+  app.get("/api/users/top-commenters", async (req, res) => {
+    try {
+      // Get users with their comment counts (limit to top 5)
+      const topCommenters = await storage.getUsersWithCommentCounts(5);
+      res.json(topCommenters);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch top commenters" });
     }
   });
 

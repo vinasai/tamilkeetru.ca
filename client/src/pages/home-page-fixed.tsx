@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearch, Link } from "wouter";
 import { ArticleWithDetails, Category } from "@shared/schema";
@@ -9,6 +9,23 @@ import CategorySection from "@/components/articles/category-section";
 import NewsletterForm from "@/components/sidebar/newsletter-form";
 import CategoriesWidget from "@/components/sidebar/categories-widget";
 import PopularNews from "@/components/sidebar/popular-news";
+import { Button } from "@/components/ui/button";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { useScrollTop } from "@/hooks/use-scroll-top";
+import TopSubscribers from "@/components/sidebar/top-subscribers";
 
 export default function HomePage() {
   const [, setLocation] = useLocation();
@@ -16,35 +33,103 @@ export default function HomePage() {
   const params = new URLSearchParams(search);
   const categorySlug = params.get('category');
   const searchQuery = params.get('search');
+  
+  // Use the scroll to top hook
+  useScrollTop();
+  
+  // State for view options
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortMethod, setSortMethod] = useState<"newest" | "oldest" | "a-z" | "z-a">("newest");
+  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
 
   // Get categories
-  const { data: categories } = useQuery<Category[]>({
+  const { data: categoriesResponse } = useQuery({
     queryKey: ['/api/categories'],
   });
+
+  // Extract categories array, handling both standard array responses and our custom empty response format
+  const categories = Array.isArray(categoriesResponse) 
+    ? categoriesResponse 
+    : categoriesResponse && typeof categoriesResponse === 'object' && 'data' in categoriesResponse && Array.isArray(categoriesResponse.data) 
+      ? categoriesResponse.data 
+      : [];
 
   // Get articles (filtered or all)
   const { data: articles, isLoading } = useQuery<ArticleWithDetails[]>({
     queryKey: [
-      '/api/articles', 
+      categorySlug ? `/api/articles/category/${categorySlug}` : '/api/articles', 
       categorySlug ? `category=${categorySlug}` : '', 
       searchQuery ? `search=${searchQuery}` : ''
     ],
   });
 
+  useEffect(() => {
+    console.log("articles", articles);
+  }, [articles]);
+
+  // Add sorting function for articles with date filtering
+  const filteredAndSortedArticles = articles ? [...articles]
+    .filter(article => {
+      // Apply date filter if it exists
+      if (dateFilter) {
+        const articleDate = new Date(article.createdAt);
+        const filterDate = new Date(dateFilter);
+        
+        return (
+          articleDate.getFullYear() === filterDate.getFullYear() &&
+          articleDate.getMonth() === filterDate.getMonth() &&
+          articleDate.getDate() === filterDate.getDate()
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      switch (sortMethod) {
+        case "newest":
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case "oldest":
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case "a-z":
+          return a.title.localeCompare(b.title);
+        case "z-a":
+          return b.title.localeCompare(a.title);
+        default:
+          return 0;
+      }
+    }) : [];
+
   // Set document title
   useEffect(() => {
     document.title = searchQuery 
-      ? `Search: ${searchQuery} - Daily News` 
+      ? `Search: ${searchQuery} - Tamil Keetru` 
       : categorySlug 
-        ? `${getCategoryName(categorySlug, categories)} - Daily News` 
-        : "Daily News - Breaking News, Latest Updates & Headlines";
+        ? `${getCategoryName(categorySlug, categories)} - Tamil Keetru` 
+        : "Tamil Keetru - Breaking News, Latest Updates & Headlines";
   }, [searchQuery, categorySlug, categories]);
 
   // Helper to get category name from slug
-  const getCategoryName = (slug: string, categories?: Category[]) => {
-    if (!categories) return slug.charAt(0).toUpperCase() + slug.slice(1);
-    const category = categories.find(c => c.slug === slug);
-    return category ? category.name : (slug.charAt(0).toUpperCase() + slug.slice(1));
+  const getCategoryName = (slug: string, categoriesList?: any[]) => {
+    if (!categoriesList || !Array.isArray(categoriesList) || categoriesList.length === 0) {
+      return slug.charAt(0).toUpperCase() + slug.slice(1);
+    }
+    
+    // Check if this is a valid category
+    const category = categoriesList.find(c => c.slug === slug.toLowerCase());
+    
+    // Only return capitalized custom category if one of our valid categories wasn't found
+    // This prevents arbitrary URL parameters from becoming page titles
+    const validCategorySlugs = ["politics", "sports", "business", "entertainment", 
+                              "technology", "health", "science", "opinion"];
+    
+    if (category) {
+      return category.name;
+    } else if (validCategorySlugs.includes(slug.toLowerCase())) {
+      // If slug matches our predefined list but data hasn't loaded yet
+      return slug.charAt(0).toUpperCase() + slug.slice(1);
+    } else {
+      // For invalid categories, use a default title
+      return "Category Not Found";
+    }
   };
 
   return (
@@ -66,6 +151,77 @@ export default function HomePage() {
 
         {/* Hero Banner - only show on home page */}
         {!categorySlug && !searchQuery && <HeroSlider />}
+
+        {/* Filtering and View Options - only show for category or search */}
+        {(categorySlug || searchQuery) && (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-white p-4 rounded-md shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-3 mb-3 sm:mb-0">
+              <Select value={sortMethod} onValueChange={(value) => setSortMethod(value as any)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="a-z">A-Z</SelectItem>
+                  <SelectItem value="z-a">Z-A</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className={dateFilter ? "border-secondary text-secondary" : ""}
+                  >
+                    <i className="far fa-calendar-alt mr-2"></i>
+                    {dateFilter ? format(dateFilter, "PPP") : "Filter by Date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={dateFilter}
+                    onSelect={setDateFilter}
+                    initialFocus
+                  />
+                  {dateFilter && (
+                    <div className="p-3 border-t border-gray-200">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setDateFilter(undefined)}
+                        className="w-full"
+                      >
+                        Clear Date Filter
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">View:</span>
+              <Button 
+                variant={viewMode === "grid" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("grid")}
+                className="px-3"
+              >
+                <i className="fas fa-th-large"></i>
+              </Button>
+              <Button 
+                variant={viewMode === "list" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="px-3"
+              >
+                <i className="fas fa-list"></i>
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Category/Search Results or Top Stories */}
         {(categorySlug || searchQuery) ? (
@@ -98,11 +254,37 @@ export default function HomePage() {
                   Return to Home
                 </button>
               </div>
-            ) : (
+            ) : filteredAndSortedArticles.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-lg text-gray-600">No articles found matching your filters.</p>
+                <Button 
+                  onClick={() => {
+                    setDateFilter(undefined);
+                    setSortMethod("newest");
+                  }} 
+                  className="mt-4 bg-secondary text-white"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {articles.map(article => (
+                {filteredAndSortedArticles.map(article => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredAndSortedArticles.map(article => (
+                  <ArticleCard key={article.id} article={article} variant="horizontal" />
+                ))}
+              </div>
+            )}
+            
+            {filteredAndSortedArticles.length > 0 && (
+              <div className="mt-6 text-center text-sm text-gray-500">
+                Showing {filteredAndSortedArticles.length} {filteredAndSortedArticles.length === 1 ? 'article' : 'articles'}
+                {dateFilter && <> from {format(dateFilter, "MMMM d, yyyy")}</>}
               </div>
             )}
           </div>
@@ -145,6 +327,16 @@ export default function HomePage() {
           </section>
         )}
 
+        {/* Advertisement Banner - only on homepage */}
+        {!categorySlug && !searchQuery && (
+          <div className="mb-8 bg-gray-200 rounded-md p-3 text-center">
+            <div className="border border-dashed border-gray-400 py-8 px-4">
+              <p className="text-gray-500 font-bold text-lg">ADVERTISEMENT</p>
+              <p className="text-gray-500 text-sm">728x90 Banner Ad</p>
+            </div>
+          </div>
+        )}
+
         {/* Main Content Layout - only on homepage */}
         {!categorySlug && !searchQuery && (
           <>
@@ -181,7 +373,7 @@ export default function HomePage() {
                           </Link>
                         </h3>
                         <div className="text-white/70 text-xs">
-                          <span><i className="far fa-clock mr-1"></i> {new Date(articles[3].createdAt).toLocaleDateString()}</span>
+                          <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[3].createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
@@ -217,9 +409,9 @@ export default function HomePage() {
                           {articles[0].excerpt}
                         </p>
                         <div className="text-white/70 text-xs flex items-center space-x-4">
-                          <span><i className="far fa-clock mr-1"></i> {new Date(articles[0].createdAt).toLocaleDateString()}</span>
-                          <span><i className="far fa-user mr-1"></i> {articles[0].author.username}</span>
-                          <span><i className="far fa-comment mr-1"></i> {articles[0].commentCount}</span>
+                          <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[0].createdAt).toLocaleDateString()}</span>
+                          <span className="flex items-center"><i className="far fa-user mr-1"></i> {articles[0].author.username}</span>
+                          <span className="flex items-center"><i className="far fa-comment mr-1"></i> {articles[0].commentCount}</span>
                         </div>
                       </div>
                     </div>
@@ -247,7 +439,7 @@ export default function HomePage() {
                           </Link>
                         </h3>
                         <div className="text-white/70 text-xs">
-                          <span><i className="far fa-clock mr-1"></i> {new Date(articles[4].createdAt).toLocaleDateString()}</span>
+                          <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[4].createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
@@ -292,7 +484,7 @@ export default function HomePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Main Featured Article */}
                     {articles && articles.length > 1 && (
-                      <div className="md:row-span-2 bg-white rounded-md shadow-md overflow-hidden">
+                      <div className="md:row-span-2 bg-white rounded-md shadow-md overflow-hidden h-auto">
                         <div className="relative h-48 md:h-64 overflow-hidden">
                           <img 
                             src={articles[1].coverImage} 
@@ -416,7 +608,7 @@ export default function HomePage() {
                       Register
                     </button>
                   </div>
-                  <div className="text-center text-sm text-gray-500">
+                  {/* <div className="text-center text-sm text-gray-500">
                     <span>Or continue with</span>
                     <div className="flex justify-center space-x-3 mt-2">
                       <a href="#" className="w-8 h-8 rounded-full bg-[#3b5998] text-white flex items-center justify-center">
@@ -429,87 +621,11 @@ export default function HomePage() {
                         <i className="fab fa-google"></i>
                       </a>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Top Subscribers Widget */}
-                <div className="bg-white rounded-md shadow-md p-4 mb-6">
-                  <h3 className="font-bold font-['Roboto_Condensed'] text-lg mb-3 pb-2 border-b border-gray-200">
-                    TOP SUBSCRIBERS
-                  </h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden mr-3">
-                        <img src="https://i.pravatar.cc/100?img=1" alt="Subscriber" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-grow">
-                        <h4 className="font-semibold text-sm">Emma Thompson</h4>
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <span className="flex items-center"><i className="fas fa-comment-alt mr-1"></i> 128</span>
-                          <span className="mx-2">•</span>
-                          <span className="bg-secondary/10 text-secondary px-1 rounded text-xs">Premium</span>
-                        </div>
-                      </div>
-                      <button className="text-gray-400 hover:text-secondary">
-                        <i className="fas fa-plus-circle"></i>
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden mr-3">
-                        <img src="https://i.pravatar.cc/100?img=2" alt="Subscriber" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-grow">
-                        <h4 className="font-semibold text-sm">James Wilson</h4>
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <span className="flex items-center"><i className="fas fa-comment-alt mr-1"></i> 97</span>
-                          <span className="mx-2">•</span>
-                          <span className="bg-secondary/10 text-secondary px-1 rounded text-xs">Premium</span>
-                        </div>
-                      </div>
-                      <button className="text-gray-400 hover:text-secondary">
-                        <i className="fas fa-plus-circle"></i>
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden mr-3">
-                        <img src="https://i.pravatar.cc/100?img=3" alt="Subscriber" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-grow">
-                        <h4 className="font-semibold text-sm">Sarah Johnson</h4>
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <span className="flex items-center"><i className="fas fa-comment-alt mr-1"></i> 85</span>
-                          <span className="mx-2">•</span>
-                          <span className="bg-gray-200 text-gray-600 px-1 rounded text-xs">Basic</span>
-                        </div>
-                      </div>
-                      <button className="text-gray-400 hover:text-secondary">
-                        <i className="fas fa-plus-circle"></i>
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden mr-3">
-                        <img src="https://i.pravatar.cc/100?img=4" alt="Subscriber" className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-grow">
-                        <h4 className="font-semibold text-sm">Michael Brown</h4>
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <span className="flex items-center"><i className="fas fa-comment-alt mr-1"></i> 76</span>
-                          <span className="mx-2">•</span>
-                          <span className="bg-secondary/10 text-secondary px-1 rounded text-xs">Premium</span>
-                        </div>
-                      </div>
-                      <button className="text-gray-400 hover:text-secondary">
-                        <i className="fas fa-plus-circle"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <button className="w-full text-secondary text-sm font-medium mt-4 hover:underline">
-                    View All Subscribers
-                  </button>
-                </div>
+                <TopSubscribers />
 
                 {/* Advertisement */}
                 <div className="bg-gradient-to-br from-teal-500 to-blue-500 rounded-md p-4 text-white mb-6">
@@ -517,8 +633,8 @@ export default function HomePage() {
                     <div className="rounded-full bg-white/20 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                       <i className="fas fa-headphones-alt text-2xl"></i>
                     </div>
-                    <h3 className="font-bold text-xl mb-2">DAILY NEWS PODCAST</h3>
-                    <p className="text-white/80 mb-4">Listen to our daily news podcast and stay informed on the go!</p>
+                    <h3 className="font-bold text-xl mb-2">Tamil Keetru PODCAST</h3>
+                    <p className="text-white/80 mb-4">Listen to our Tamil Keetru podcast and stay informed on the go!</p>
                     <button className="bg-white text-blue-600 font-bold py-2 px-6 rounded-full hover:bg-white/90 transition-colors">
                       Listen Now
                     </button>

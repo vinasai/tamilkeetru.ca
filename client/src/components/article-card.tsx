@@ -46,7 +46,7 @@ export default function ArticleCard({ article, variant = 'normal' }: ArticleCard
             <Link href={`/article/${slug}`}>{title}</Link>
           </h4>
           <p className="text-xs text-gray-500 mt-1">
-            <Clock className="inline h-3 w-3 mr-1" /> {formatDateRelative(publishedAt)}
+            <Clock className="inline h-3 w-3 mr-1 align-text-bottom" /> {formatDateRelative(publishedAt)}
           </p>
         </div>
       </div>
@@ -74,11 +74,15 @@ export default function ArticleCard({ article, variant = 'normal' }: ArticleCard
             <p className="text-gray-600 text-sm mb-3">{truncateText(summary, 120)}</p>
             <div className="flex justify-between items-center text-xs text-gray-500">
               <div>
-                <Clock className="inline h-3 w-3 mr-1" /> {formatDateRelative(publishedAt)}
+                <Clock className="inline h-3 w-3 mr-1 align-text-bottom" /> {formatDateRelative(publishedAt)}
               </div>
               <div className="flex space-x-3">
-                <span><Heart className="inline h-3 w-3 mr-1" /> {likesCount}</span>
-                <span><MessageSquare className="inline h-3 w-3 mr-1" /> {commentsCount}</span>
+                <button className="flex items-center transition-colors hover:text-primary">
+                  <Heart className="h-3 w-3 mr-1" /> {likesCount}
+                </button>
+                <button className="flex items-center transition-colors hover:text-primary">
+                  <MessageSquare className="h-3 w-3 mr-1" /> {commentsCount}
+                </button>
               </div>
             </div>
           </div>
@@ -107,11 +111,15 @@ export default function ArticleCard({ article, variant = 'normal' }: ArticleCard
         <p className="text-gray-600 mb-3 text-sm line-clamp-3">{summary}</p>
         <div className="flex justify-between items-center text-xs text-gray-500">
           <div>
-            <Clock className="inline h-3 w-3 mr-1" /> {formatDateRelative(publishedAt)}
+            <Clock className="inline h-3 w-3 mr-1 align-text-bottom" /> {formatDateRelative(publishedAt)}
           </div>
           <div className="flex space-x-3">
-            <span><Heart className="inline h-3 w-3 mr-1" /> {likesCount}</span>
-            <span><MessageSquare className="inline h-3 w-3 mr-1" /> {commentsCount}</span>
+            <button className="flex items-center transition-colors hover:text-primary">
+              <Heart className="h-3 w-3 mr-1" /> {likesCount}
+            </button>
+            <button className="flex items-center transition-colors hover:text-primary">
+              <MessageSquare className="h-3 w-3 mr-1" /> {commentsCount}
+            </button>
           </div>
         </div>
       </div>

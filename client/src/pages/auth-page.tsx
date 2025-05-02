@@ -99,7 +99,7 @@ export default function AuthPage() {
         <div className="w-full md:w-1/2">
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl font-bold">Welcome to Daily News</CardTitle>
+              <CardTitle className="text-2xl font-bold">Welcome to Tamil Keetru</CardTitle>
               <CardDescription>
                 Sign in or create an account to personalize your news experience
               </CardDescription>
@@ -233,19 +233,19 @@ export default function AuthPage() {
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-gray-300"></span>
                   </div>
-                  <div className="relative flex justify-center text-sm">
+                  {/* <div className="relative flex justify-center text-sm">
                     <span className="px-2 bg-white text-gray-500">Or continue with</span>
-                  </div>
+                  </div> */}
                 </div>
 
-                <div className="flex gap-3 mt-6">
+                {/* <div className="flex gap-3 mt-6">
                   <Button variant="outline" className="w-full">
                     <i className="fab fa-facebook-f mr-2"></i> Facebook
                   </Button>
                   <Button variant="outline" className="w-full">
                     <i className="fab fa-google mr-2"></i> Google
                   </Button>
-                </div>
+                </div> */}
               </div>
             </CardContent>
             <CardFooter className="flex justify-center">
@@ -258,7 +258,7 @@ export default function AuthPage() {
 
         <div className="w-full md:w-1/2 bg-secondary text-white rounded-lg overflow-hidden hidden md:block">
           <div className="p-8 h-full flex flex-col justify-center">
-            <h2 className="text-3xl font-bold mb-4">Stay Informed with Daily News</h2>
+            <h2 className="text-3xl font-bold mb-4">Stay Informed with Tamil Keetru</h2>
             <p className="mb-6">Join our community and get access to:</p>
             <ul className="space-y-4 mb-8">
               <li className="flex items-center">
@@ -283,7 +283,7 @@ export default function AuthPage() {
               </li>
             </ul>
             <div className="text-sm opacity-80">
-              "Daily News delivers timely, accurate reporting on the stories that matter most."
+              "Tamil Keetru delivers timely, accurate reporting on the stories that matter most."
             </div>
           </div>
         </div>

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useScrollTop } from "@/hooks/use-scroll-top";
 
 export default function ArticlePage() {
   const { slug } = useParams();
@@ -19,6 +20,9 @@ export default function ArticlePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
+  
+  // Use the scroll to top hook
+  useScrollTop();
   
   const { data: article, isLoading, error } = useQuery<ArticleWithDetails>({
     queryKey: [`/api/articles/slug/${slug}`],
@@ -43,7 +47,7 @@ export default function ArticlePage() {
   // Set document title
   useEffect(() => {
     if (article) {
-      document.title = `${article.title} - Daily News`;
+      document.title = `${article.title} - Tamil Keetru`;
     }
   }, [article]);
 
@@ -78,7 +82,7 @@ export default function ArticlePage() {
 
   const handleShare = (platform: string) => {
     const url = window.location.href;
-    const title = article?.title || "Daily News Article";
+    const title = article?.title || "Tamil Keetru Article";
     
     switch (platform) {
       case 'facebook':
@@ -204,7 +208,7 @@ export default function ArticlePage() {
               {/* Mid-article Advertisement */}
               <div className="my-8 bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-md text-white flex flex-col md:flex-row items-center justify-between">
                 <div className="mb-4 md:mb-0">
-                  <h3 className="text-lg font-bold mb-1">Daily News Premium</h3>
+                  <h3 className="text-lg font-bold mb-1">Tamil Keetru Premium</h3>
                   <p className="text-sm text-white/90">Get unlimited access to exclusive content and ad-free reading</p>
                 </div>
                 <button className="bg-white text-blue-600 font-bold py-2 px-6 rounded hover:bg-blue-50 transition-colors">
@@ -223,19 +227,19 @@ export default function ArticlePage() {
                   <Button 
                     variant={isLiked ? "default" : "outline"}
                     size="sm"
-                    className={isLiked ? "bg-secondary text-white" : "text-gray-500 hover:text-secondary"}
+                    className={isLiked ? "bg-primary text-white" : "text-gray-500 hover:text-primary flex items-center"}
                     onClick={handleLike}
                   >
-                    <i className={`${isLiked ? 'fas' : 'far'} fa-heart mr-1`}></i>
+                    <i className={`${isLiked ? 'fas' : 'far'} fa-heart mr-1 align-text-bottom`}></i>
                     {article.likeCount} Likes
                   </Button>
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="text-gray-500 hover:text-secondary"
+                    className="text-gray-500 hover:text-primary flex items-center"
                     onClick={() => document.getElementById('comments')?.scrollIntoView({ behavior: 'smooth' })}
                   >
-                    <i className="far fa-comment mr-1"></i>
+                    <i className="far fa-comment mr-1 align-text-bottom"></i>
                     {article.commentCount} Comments
                   </Button>
                 </div>
@@ -253,8 +257,8 @@ export default function ArticlePage() {
                   <Button variant="ghost" size="sm" className="text-[#25D366] hover:opacity-80 p-1 h-auto" onClick={() => handleShare('whatsapp')}>
                     <i className="fab fa-whatsapp"></i>
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-secondary p-1 h-auto" onClick={() => handleShare('email')}>
-                    <i className="fas fa-envelope"></i>
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-primary p-1 h-auto flex items-center" onClick={() => handleShare('email')}>
+                    <i className="fas fa-envelope align-text-bottom"></i>
                   </Button>
                 </div>
               </div>
@@ -269,7 +273,7 @@ export default function ArticlePage() {
                   />
                   <div>
                     <h4 className="font-bold text-lg">{article.author.username}</h4>
-                    <p className="text-sm text-gray-600 mb-2">Senior Correspondent at Daily News</p>
+                    <p className="text-sm text-gray-600 mb-2">Senior Correspondent at Tamil Keetru</p>
                     <p className="text-sm">
                       Expert in {article.category.name} with over 10 years of journalism experience.
                       Follow for the latest news and in-depth analysis.
@@ -314,7 +318,7 @@ export default function ArticlePage() {
                     <i className="fas fa-podcast text-3xl"></i>
                   </div>
                   <h3 className="font-bold text-xl mb-2">DAILY PODCAST</h3>
-                  <p className="text-sm mb-4">Listen to our daily news podcast</p>
+                  <p className="text-sm mb-4">Listen to our Tamil Keetru podcast</p>
                   <button className="bg-white text-orange-500 font-bold px-4 py-2 rounded">
                     Listen Now
                   </button>
@@ -338,7 +342,7 @@ export default function ArticlePage() {
                   STAY UPDATED
                 </h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  Get the daily news delivered to your inbox
+                  Get the Tamil Keetru delivered to your inbox
                 </p>
                 <form className="space-y-3">
                   <input 

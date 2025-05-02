@@ -57,3 +57,25 @@
   }
 }
 
+@layer components {
+  /* Standardize hover effects throughout the site */
+  .hover\:text-secondary {
+    @apply hover:text-primary;
+  }
+  
+  /* Fix icon alignments */
+  i, svg {
+    @apply align-text-bottom;
+  }
+  
+  /* Standard interactive element hover */
+  a, button {
+    @apply transition-colors;
+  }
+  
+  /* Standard action button hover */
+  .action-icon {
+    @apply flex items-center transition-colors hover:text-primary;
+  }
+}
+

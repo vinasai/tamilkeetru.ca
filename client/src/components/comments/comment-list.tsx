@@ -112,15 +112,15 @@ export default function CommentList({ articleId }: CommentListProps) {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="p-0 h-auto text-gray-500 hover:text-secondary"
+                  className="p-0 h-auto text-gray-500 hover:text-primary flex items-center"
                   onClick={() => handleLikeComment(comment.id)}
                 >
-                  <i className="far fa-thumbs-up mr-1"></i> {comment.likeCount}
+                  <i className="far fa-thumbs-up mr-1 align-text-bottom"></i> {comment.likeCount}
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="p-0 h-auto text-gray-500 hover:text-secondary"
+                  className="p-0 h-auto text-gray-500 hover:text-primary flex items-center"
                   onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
                 >
                   {replyingTo === comment.id ? 'Cancel' : 'Reply'}
@@ -159,10 +159,10 @@ export default function CommentList({ articleId }: CommentListProps) {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="p-0 h-auto text-gray-500 hover:text-secondary"
+                          className="p-0 h-auto text-gray-500 hover:text-primary flex items-center"
                           onClick={() => handleLikeComment(reply.id)}
                         >
-                          <i className="far fa-thumbs-up mr-1"></i> {reply.likeCount}
+                          <i className="far fa-thumbs-up mr-1 align-text-bottom"></i> {reply.likeCount}
                         </Button>
                       </div>
                     </div>
@@ -178,7 +178,7 @@ export default function CommentList({ articleId }: CommentListProps) {
         <div className="text-center">
           <Button 
             variant="ghost" 
-            className="text-secondary font-medium hover:underline"
+            className="text-primary font-medium hover:text-primary/80"
             onClick={() => queryClient.invalidateQueries({ queryKey: [`/api/articles/${articleId}/comments`] })}
           >
             Load More Comments

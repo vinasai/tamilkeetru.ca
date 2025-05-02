@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import ArticleCard from './article-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getCategoryColor } from '@/lib/utils';
+import { EmptyState } from '@/components/ui/error-state';
+import { useDataState } from '@/hooks/use-data-state';
 
 interface CategorySectionProps {
   category: {
@@ -14,10 +16,13 @@ interface CategorySectionProps {
 }
 
 export default function CategorySection({ category, variant = 'featured' }: CategorySectionProps) {
-  const { data: articles, isLoading } = useQuery({
-    queryKey: [`/api/categories/${category.slug}/articles`],
-    staleTime: 60000, // 1 minute
-  });
+  const { data: articles, isLoading, isEmpty, emptyMessage } = useDataState<any[]>(
+    () => fetch(`/api/articles/category/${category.slug}`),
+    {
+      emptyMessage: `No articles found in ${category.name} category`,
+      dependencies: [category.slug]
+    }
+  );
   
   if (isLoading) {
     return (
@@ -41,8 +46,26 @@ export default function CategorySection({ category, variant = 'featured' }: Cate
     );
   }
   
-  if (!articles || articles.length === 0) {
-    return null;
+  if (isEmpty || !articles || articles.length === 0) {
+    return (
+      <section className="mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className={`text-xl font-bold font-condensed border-l-4 ${getCategoryColor(category.name)} pl-3`}>
+            {category.name.toUpperCase()}
+          </h2>
+          <Link href={`/category/${category.slug}`} className="text-secondary text-sm font-medium hover:underline">
+            View Category <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-1 inline-block">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+          </Link>
+        </div>
+        
+        <EmptyState 
+          title={`No ${category.name} Articles`}
+          description={emptyMessage || `There are currently no articles in the ${category.name} category.`}
+        />
+      </section>
+    );
   }
   
   const mainArticle = articles[0];

@@ -5,7 +5,7 @@ import { Category } from "@shared/schema";
 
 export default function SitemapPage() {
   useEffect(() => {
-    document.title = "Sitemap - Daily News";
+    document.title = "Sitemap - Tamil Keetru";
   }, []);
 
   // Get categories
@@ -100,7 +100,7 @@ export default function SitemapPage() {
               <div className="p-4 border border-gray-200 rounded-lg text-center">
                 <i className="fas fa-headphones text-secondary text-3xl mb-3"></i>
                 <h3 className="font-semibold mb-2">Podcast</h3>
-                <p className="text-sm text-gray-600">Listen to our daily news podcast</p>
+                <p className="text-sm text-gray-600">Listen to our Tamil Keetru podcast</p>
               </div>
             </div>
           </div>

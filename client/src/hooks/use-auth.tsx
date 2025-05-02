@@ -15,6 +15,7 @@ type AuthContextType = {
   loginMutation: UseMutationResult<SelectUser, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
   registerMutation: UseMutationResult<SelectUser, Error, InsertUser>;
+  updateUser: (user: SelectUser) => void;
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
@@ -93,6 +94,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Function to update user in React Query cache
+  const updateUser = (updatedUser: SelectUser) => {
+    queryClient.setQueryData(["/api/user"], updatedUser);
+    toast({
+      title: "Profile updated",
+      description: "Your profile has been updated successfully.",
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -102,6 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        updateUser,
       }}
     >
       {children}
