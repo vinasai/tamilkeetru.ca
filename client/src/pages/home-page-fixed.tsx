@@ -353,11 +353,18 @@ export default function HomePage() {
         )}
 
         {/* Advertisement - Full Width */}
-        {hasHomePageAds && (
+        {hasHomePageAds ? (
           <div className="mb-12">
             <AdDisplay position="home-page" />
           </div>
-        )}
+        ):
+        <div className="mb-8 bg-gray-200 rounded-md p-3 text-center">
+        <div className="border border-dashed border-gray-400 py-8 px-4">
+          <p className="text-gray-500 font-bold text-lg">ADVERTISEMENT</p>
+          <p className="text-gray-500 text-sm">728x90 Banner Ad</p>
+        </div>
+      </div>
+        }
 
         {/* Main Content Layout - only on homepage */}
         {!categorySlug && !searchQuery && (
@@ -524,9 +531,29 @@ export default function HomePage() {
             </div>
             
             {/* Advertisement Banner - only on homepage */}
-            {!categorySlug && !searchQuery && hasHomePageAds && (
+            {!categorySlug && !searchQuery && hasHomePageAds ? (
               <AdDisplay position="home-page" />
-            )}
+            ): 
+            <div className="mb-12 rounded-md overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white flex flex-col md:flex-row items-center justify-between">
+                <div className="mb-4 md:mb-0 text-center md:text-left">
+                  <h3 className="text-2xl font-bold mb-2">Subscribe for Premium Access</h3>
+                  <p className="max-w-md text-white/80">Get unlimited access to all articles, premium features and exclusive content.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button className="bg-white text-purple-700 font-bold py-3 px-6 rounded-md hover:bg-white/90 transition-colors">
+                    Try Free for 7 Days
+                  </button>
+                  <button className="bg-transparent border-2 border-white text-white font-bold py-3 px-6 rounded-md hover:bg-white/10 transition-colors">
+                    Learn More
+                  </button>
+                </div>
+              </div>
+            </div>
+            }
+
+             
+             
 
             {/* Three Column Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -547,14 +574,14 @@ export default function HomePage() {
                     {/* Article 1 */}
                     {articles && articles.length > 1 && (
                       <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
-                        <div className="h-40 overflow-hidden">
+                        <div className="h-40 overflow-hidden relative">
                           <img 
                             src={articles[1].coverImage} 
                             alt={articles[1].title}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                           />
-                          <div className="absolute top-3 left-3">
-                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                          <div className="absolute bottom-0 left-0 w-full">
+                            <span className="inline-block bg-secondary text-white text-xs px-3 py-1">
                               {articles[1].category.name}
                             </span>
                           </div>
@@ -580,14 +607,14 @@ export default function HomePage() {
                     {/* Article 2 */}
                     {articles && articles.length > 5 && (
                       <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
-                        <div className="h-40 overflow-hidden">
+                        <div className="h-40 overflow-hidden relative">
                           <img 
                             src={articles[5].coverImage} 
                             alt={articles[5].title}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                           />
-                          <div className="absolute top-3 left-3">
-                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                          <div className="absolute bottom-0 left-0 w-full">
+                            <span className="inline-block bg-secondary text-white text-xs px-3 py-1">
                               {articles[5].category.name}
                             </span>
                           </div>
@@ -613,14 +640,14 @@ export default function HomePage() {
                     {/* Article 3 */}
                     {articles && articles.length > 6 && (
                       <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
-                        <div className="h-40 overflow-hidden">
+                        <div className="h-40 overflow-hidden relative">
                           <img 
                             src={articles[6].coverImage} 
                             alt={articles[6].title}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                           />
-                          <div className="absolute top-3 left-3">
-                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                          <div className="absolute bottom-0 left-0 w-full">
+                            <span className="inline-block bg-secondary text-white text-xs px-3 py-1">
                               {articles[6].category.name}
                             </span>
                           </div>
@@ -646,14 +673,14 @@ export default function HomePage() {
                     {/* Article 4 */}
                     {articles && articles.length > 7 && (
                       <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
-                        <div className="h-40 overflow-hidden">
+                        <div className="h-40 overflow-hidden relative">
                           <img 
                             src={articles[7].coverImage} 
                             alt={articles[7].title}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                           />
-                          <div className="absolute top-3 left-3">
-                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                          <div className="absolute bottom-0 left-0 w-full">
+                            <span className="inline-block bg-secondary text-white text-xs px-3 py-1">
                               {articles[7].category.name}
                             </span>
                           </div>
