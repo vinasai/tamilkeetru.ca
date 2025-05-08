@@ -1,0 +1,74 @@
+name: tamilkeetru.ca deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          # Create SSH directory and set up private key
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          # Add GitHub's host key to known_hosts to avoid verification prompts
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          # Test the SSH connection (this may print a welcome message)
+          ssh -o StrictHostKeyChecking=no -T ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+      - name: Deploy to Server
+        run: |
+          # Define variables used for deployment
+          SERVER_USER=${{ secrets.SSH_USER }}
+          SERVER_IP=${{ secrets.SSH_HOST }}
+          SERVER_PATH=${{ secrets.WORK_DIR }}
+          REPO_URL="git@github.com:vinasai/tamilkeetru.ca.git"
+          FRONTEND_DIR="$SERVER_PATH"
+          BACKEND_DIR="$SERVER_PATH/dist"
+          MAIN_BRANCH="main"
+     
+          # Connect to the server via SSH and run deployment commands
+          ssh -i ~/.ssh/id_rsa $SERVER_USER@$SERVER_IP \
+          "SERVER_PATH='$SERVER_PATH' REPO_URL='$REPO_URL' MAIN_BRANCH='$MAIN_BRANCH' FRONTEND_DIR='$FRONTEND_DIR' BACKEND_DIR='$BACKEND_DIR' bash -s" << 'EOF'
+
+            set -e  # Exit immediately if any command fails
+            # Ensure the remote SSH known_hosts is set up
+            mkdir -p ~/.ssh
+            ssh-keyscan github.com >> ~/.ssh/known_hosts
+            # Check if the repository already exists
+            if [ -d "$SERVER_PATH/.git" ]; then
+              echo "Repository exists, pulling latest changes..."
+              cd "$SERVER_PATH"
+              git config --global --add safe.directory "$SERVER_PATH"
+              git reset --hard
+              git pull origin "$MAIN_BRANCH"
+            else
+              echo "Repository not found, cloning into a temporary folder..."
+              TEMP_CLONE_DIR="/tmp/chefinyourkitchen.ca/repo-clone"
+              rm -rf "\$TEMP_CLONE_DIR"
+              git clone "$REPO_URL" "\$TEMP_CLONE_DIR"
+              mkdir -p "$SERVER_PATH"
+              mv "\$TEMP_CLONE_DIR"/* "$SERVER_PATH/"
+              mv "\$TEMP_CLONE_DIR"/.git "$SERVER_PATH/"
+              rm -rf "\$TEMP_CLONE_DIR"
+            fi
+            # Deploy the frontend (Next.js)
+            cd "$FRONTEND_DIR"
+            npm install
+            npm run build
+
+            # Deploy the backend
+            cd "$BACKEND_DIR"
+            rm -rf node_modules package-lock.json
+            npm install
+            pm2 describe tamilkeetru-backend >/dev/null 2>&1 && pm2 restart tamilkeetru-backend --update-env || pm2 start index.js --name tamilkeetru-backend
+            pm2 save
+            # Restart Nginx to apply any configuration or content changes
+            sudo systemctl restart nginx
+          EOF
