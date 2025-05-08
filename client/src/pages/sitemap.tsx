@@ -84,7 +84,7 @@ export default function SitemapPage() {
             ))}
           </div>
           
-          <div className="mt-12 border-t border-gray-200 pt-6">
+          {/* <div className="mt-12 border-t border-gray-200 pt-6">
             <h2 className="text-xl font-bold mb-4">Additional Resources</h2>
             <div className="grid md:grid-cols-3 gap-4">
               <div className="p-4 border border-gray-200 rounded-lg text-center">
@@ -103,7 +103,7 @@ export default function SitemapPage() {
                 <p className="text-sm text-gray-600">Listen to our Tamil Keetru podcast</p>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>

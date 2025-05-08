@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { apiRequest } from '@/lib/queryClient';
 import { FaFacebookF, FaTwitter, FaGoogle, FaPlay } from 'react-icons/fa';
 import { formatDateRelative } from '@/lib/utils';
+import { ArticleWithDetails, Category } from '@shared/schema';
 
 const newsletterSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -77,10 +78,8 @@ export function AuthWidget() {
 }
 
 export function PopularArticlesWidget() {
-  const { data: articles, isLoading } = useQuery({
-    queryKey: ['/api/articles'],
-    select: (articles) => 
-      [...articles].sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0)).slice(0, 5),
+  const { data: articles = [], isLoading } = useQuery<ArticleWithDetails[]>({
+    queryKey: ['/api/articles/popular'],
     staleTime: 300000, // 5 minutes
   });
   
@@ -107,7 +106,7 @@ export function PopularArticlesWidget() {
     );
   }
   
-  if (!articles || articles.length === 0) {
+  if (articles.length === 0) {
     return null;
   }
   
@@ -118,7 +117,7 @@ export function PopularArticlesWidget() {
       </CardHeader>
       <CardContent>
         <ol className="space-y-4">
-          {articles.map((article: any, index: number) => (
+          {articles.map((article, index) => (
             <li key={article.id} className="flex items-start">
               <span className="text-2xl font-bold text-primary mr-3 font-condensed">{index + 1}</span>
               <div>
@@ -129,7 +128,7 @@ export function PopularArticlesWidget() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  {formatDateRelative(article.publishedAt)}
+                  {article.createdAt && formatDateRelative(article.createdAt)}
                 </p>
               </div>
             </li>
@@ -141,7 +140,7 @@ export function PopularArticlesWidget() {
 }
 
 export function CategoryWidget() {
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories = [], isLoading } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
     staleTime: 600000, // 10 minutes
   });

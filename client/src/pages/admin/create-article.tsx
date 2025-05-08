@@ -49,11 +49,26 @@ import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 // Extend the insert schema with client-side validations
 const formSchema = insertArticleSchema.extend({
-  title: z.string().min(5, "Title must be at least 5 characters").max(100, "Title must not exceed 100 characters"),
-  slug: z.string().min(3, "Slug must be at least 3 characters").regex(/^[a-z0-9-]+$/, "Slug must only contain lowercase letters, numbers, and hyphens"),
+  title: z.string()
+    .min(5, "Title must be at least 5 characters")
+    .max(50, "Title must not exceed 50 characters (including spaces)"),
+  slug: z.string()
+    .min(3, "Slug must be at least 3 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug must only contain lowercase letters, numbers, and hyphens"),
   content: z.string().min(50, "Content must be at least 50 characters"),
-  excerpt: z.string().min(20, "Excerpt must be at least 20 characters").max(250, "Excerpt must not exceed 250 characters"),
-  coverImage: z.string().url("Cover image must be a valid URL"),
+  excerpt: z.string()
+    .min(20, "Excerpt must be at least 20 characters")
+    .max(250, "Excerpt must not exceed 250 characters"),
+  coverImage: z.string().url("Cover image must be a valid URL").optional(),
+  coverImageFile: z.any().optional(),
+  uploadedImage: z.string().optional(),
+  categoryId: z.number().min(1, "Please select a category"),
+  authorId: z.number().min(1, "Please select an author"),
+  isFeatured: z.boolean().optional(),
+  isBreaking: z.boolean().optional(),
+}).refine(data => data.coverImage || data.uploadedImage, {
+  message: "Either Cover Image URL or Cover Image Upload is required",
+  path: ["coverImage"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -65,7 +80,9 @@ export default function CreateArticle() {
   const { user } = useAuth();
   const isEditMode = !!id;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [featuredImage, setFeaturedImage] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<{width: number, height: number} | null>(null);
+  const [isImageDimensionWarningVisible, setIsImageDimensionWarningVisible] = useState(false);
   const editorRef = useRef<any>(null);
 
   // Fetch categories
@@ -93,7 +110,62 @@ export default function CreateArticle() {
     }
   }, [article]);
 
+  // Check image dimensions
+  const checkImageDimensions = (url: string) => {
+    const img = new Image();
+    img.onload = () => {
+      setImageDimensions({ width: img.width, height: img.height });
+      
+      // Check if dimensions match recommended size (700px x 384px)
+      if (img.width !== 700 || img.height !== 384) {
+        setIsImageDimensionWarningVisible(true);
+      } else {
+        setIsImageDimensionWarningVisible(false);
+      }
+    };
+    img.onerror = () => {
+      setImageDimensions(null);
+      setIsImageDimensionWarningVisible(false);
+    };
+    img.src = url;
+  };
 
+  // Handle file upload
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Create a preview URL for the image
+    const imageUrl = URL.createObjectURL(file);
+    setUploadedImageUrl(imageUrl);
+    
+    // Set the uploaded image value in the form
+    form.setValue("uploadedImage", imageUrl);
+    form.setValue("coverImageFile", file);
+    
+    // Clear the URL input when uploading a file
+    form.setValue("coverImage", "");
+    
+    // Check image dimensions
+    checkImageDimensions(imageUrl);
+  };
+  
+  // Remove uploaded image
+  const handleRemoveUpload = () => {
+    setUploadedImageUrl(null);
+    form.setValue("uploadedImage", "");
+    form.setValue("coverImageFile", null);
+  };
+
+  // Handle URL input change
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // If user is typing a URL, clear any uploaded image
+    if (e.target.value && uploadedImageUrl) {
+      handleRemoveUpload();
+    }
+    
+    form.setValue("coverImage", e.target.value);
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -103,6 +175,7 @@ export default function CreateArticle() {
       content: "",
       excerpt: "",
       coverImage: "",
+      uploadedImage: "",
       categoryId: 0,
       authorId: user?.id || 0,
       isFeatured: false,
@@ -119,13 +192,26 @@ export default function CreateArticle() {
         content: article.content,
         excerpt: article.excerpt,
         coverImage: article.coverImage,
+        uploadedImage: "",
         categoryId: article.categoryId,
         authorId: article.authorId,
         isFeatured: article.isFeatured,
         isBreaking: article.isBreaking,
       });
+
+      if (article.coverImage) {
+        checkImageDimensions(article.coverImage);
+      }
     }
   }, [article, form, isEditMode]);
+
+  // Check image dimensions when coverImage URL changes
+  const coverImageUrl = form.watch("coverImage");
+  useEffect(() => {
+    if (coverImageUrl) {
+      checkImageDimensions(coverImageUrl);
+    }
+  }, [coverImageUrl]);
 
   // Generate slug from title
   const generateSlug = () => {
@@ -142,9 +228,33 @@ export default function CreateArticle() {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      setIsSubmitting(true);
+      
+      // Create FormData to handle file uploads
+      const formData = new FormData();
+      
+      // Add all form values to FormData
+      Object.entries(values).forEach(([key, value]) => {
+        if (key === 'coverImageFile' && value) {
+          formData.append('file', value);
+        } else if (key !== 'coverImageFile' && key !== 'uploadedImage' && value !== undefined && value !== null) {
+          formData.append(key, String(value));
+        }
+      });
+      
       if (isEditMode && article) {
         // Update existing article
-        await apiRequest("PATCH", `/api/articles/${article.id}`, values);
+        formData.append('id', String(article.id));
+        
+        const response = await fetch(`/api/articles/${article.id}`, {
+          method: 'PATCH',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to update article');
+        }
+        
         toast({
           title: "Article updated",
           description: "The article has been successfully updated.",
@@ -154,7 +264,15 @@ export default function CreateArticle() {
         queryClient.invalidateQueries({ queryKey: [`/api/articles/${article.id}`] });
       } else {
         // Create new article
-        await apiRequest("POST", "/api/articles", values);
+        const response = await fetch('/api/articles', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to create article');
+        }
+        
         toast({
           title: "Article created",
           description: "The article has been successfully created.",
@@ -175,6 +293,8 @@ export default function CreateArticle() {
         description: error instanceof Error ? error.message : "Failed to save article",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -226,6 +346,9 @@ export default function CreateArticle() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
+            <div className="mb-4 text-sm text-muted-foreground">
+              Fields marked with <span className="text-red-500">*</span> are required
+            </div>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
@@ -233,12 +356,14 @@ export default function CreateArticle() {
                   name="title"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Title</FormLabel>
+                      <FormLabel className="flex items-center">
+                        Title <span className="text-red-500 ml-1">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="Article title" {...field} />
                       </FormControl>
                       <FormDescription>
-                        The title of your article
+                        The title of your article (maximum 50 characters)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -250,7 +375,9 @@ export default function CreateArticle() {
                   name="slug"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Slug</FormLabel>
+                      <FormLabel className="flex items-center">
+                        Slug <span className="text-red-500 ml-1">*</span>
+                      </FormLabel>
                       <div className="flex gap-2">
                         <FormControl>
                           <Input placeholder="article-slug" {...field} />
@@ -277,7 +404,9 @@ export default function CreateArticle() {
                 name="excerpt"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Excerpt</FormLabel>
+                    <FormLabel className="flex items-center">
+                      Excerpt <span className="text-red-500 ml-1">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Textarea 
                         placeholder="Brief summary of the article" 
@@ -298,7 +427,9 @@ export default function CreateArticle() {
                 name="content"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Content</FormLabel>
+                    <FormLabel className="flex items-center">
+                      Content <span className="text-red-500 ml-1">*</span>
+                    </FormLabel>
                     <FormControl>
                       <RichTextEditor
                         initialValue={field.value || ""}
@@ -316,38 +447,95 @@ export default function CreateArticle() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="coverImage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cover Image URL</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="https://example.com/image.jpg" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      URL to the main image for this article
-                    </FormDescription>
-                    <FormMessage />
-                    {field.value && (
-                      <div className="mt-2">
-                        <p className="text-sm font-medium mb-1">Preview:</p>
-                        <img 
-                          src={field.value} 
-                          alt="Cover preview" 
-                          className="max-h-40 rounded border"
-                          onError={(e) => {
-                            e.currentTarget.src = "https://placehold.co/600x400?text=Invalid+Image+URL";
-                          }}
+              {/* Cover Image Section */}
+              <div className="space-y-4 border p-4 rounded-md bg-gray-50">
+                <h3 className="font-medium">Article Cover Image <span className="text-red-500">*</span></h3>
+                <p className="text-sm text-muted-foreground">
+                  You can either upload an image or provide an image URL.
+                  <strong> Recommended dimensions: 700px × 384px</strong>
+                </p>
+                
+                {/* File Upload Option */}
+                <div className="space-y-2">
+                  <FormLabel>Upload Cover Image</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="flex-1"
+                      disabled={!!form.getValues("coverImage")}
+                    />
+                  </div>
+                  {uploadedImageUrl && (
+                    <div className="mt-2 flex items-center">
+                      <p className="text-xs text-green-600 flex-1">
+                        <i className="fas fa-check-circle mr-1"></i> Image uploaded successfully
+                      </p>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleRemoveUpload}
+                        className="text-red-500 text-xs h-7"
+                      >
+                        <i className="fas fa-times mr-1"></i> Remove
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="text-center text-sm text-muted-foreground my-2">- OR -</div>
+                
+                {/* Image URL Option */}
+                <FormField
+                  control={form.control}
+                  name="coverImage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cover Image URL</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="https://example.com/image.jpg" 
+                          {...field} 
+                          onChange={handleUrlChange}
+                          disabled={!!uploadedImageUrl}
                         />
-                      </div>
-                    )}
-                  </FormItem>
+                      </FormControl>
+                      <FormDescription>
+                        Link to an existing image on the web
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Image Preview */}
+                {(uploadedImageUrl || coverImageUrl) && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-1">Preview:</p>
+                    <div className="relative">
+                      <img 
+                        src={uploadedImageUrl || coverImageUrl} 
+                        alt="Cover preview" 
+                        className="max-w-full h-auto rounded border aspect-[700/384]"
+                        onError={(e) => {
+                          e.currentTarget.src = "https://placehold.co/700x384?text=Invalid+Image";
+                        }}
+                      />
+                      
+                      {/* Image Dimension Warning */}
+                      {isImageDimensionWarningVisible && imageDimensions && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-amber-500/80 text-white p-2 text-sm">
+                          <i className="fas fa-exclamation-triangle mr-1"></i>
+                          Warning: Image dimensions ({imageDimensions.width}px × {imageDimensions.height}px) 
+                          don't match the recommended size (700px × 384px).
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
-              />
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
@@ -355,7 +543,9 @@ export default function CreateArticle() {
                   name="categoryId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel className="flex items-center">
+                        Category <span className="text-red-500 ml-1">*</span>
+                      </FormLabel>
                       <Select 
                         onValueChange={(value) => field.onChange(parseInt(value))}
                         value={field.value ? field.value.toString() : undefined}
@@ -376,6 +566,9 @@ export default function CreateArticle() {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormDescription>
+                        Select the category for this article
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -386,7 +579,9 @@ export default function CreateArticle() {
                   name="authorId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Author</FormLabel>
+                      <FormLabel className="flex items-center">
+                        Author <span className="text-red-500 ml-1">*</span>
+                      </FormLabel>
                       <FormControl>
                         {user?.isAdmin ? (
                           <Select 

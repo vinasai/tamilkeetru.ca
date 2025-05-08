@@ -4,18 +4,18 @@ import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 
 interface PopularCategoryArticlesProps {
-  categoryId: number;
+  categorySlug: string;
   exclude?: number;
   limit?: number;
 }
 
 export default function PopularCategoryArticles({ 
-  categoryId, 
+  categorySlug, 
   exclude, 
   limit = 4 
 }: PopularCategoryArticlesProps) {
   const { data: articles, isLoading } = useQuery<ArticleWithDetails[]>({
-    queryKey: [`/api/articles/category/${categoryId}`],
+    queryKey: [`/api/articles/category/${categorySlug}`],
   });
 
   if (isLoading) {

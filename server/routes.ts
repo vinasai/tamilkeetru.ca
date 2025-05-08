@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./index";
 import { setupAuth } from "./auth";
 import { slugify } from "../shared/utils";
-import { insertArticleSchema, insertCategorySchema, insertCommentSchema, insertNewsletterSchema } from "@shared/schema";
+import { insertArticleSchema, insertCategorySchema, insertCommentSchema, insertNewsletterSchema, insertAdvertisementSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -245,6 +245,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/articles/latest", async (req, res) => {
+    try {
+      const limit = req.query.limit ? Number(req.query.limit) : 3;
+      const articles = await storage.getArticles();
+      
+      // Return the most recent articles based on createdAt timestamp
+      const latestArticles = articles
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, limit);
+      
+      if (latestArticles.length === 0) {
+        return res.status(200).json({
+          status: "empty",
+          message: "No latest articles found",
+          data: []
+        });
+      }
+      
+      res.json(latestArticles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch latest articles" });
+    }
+  });
+
   app.get("/api/articles/category/:slug", async (req, res) => {
     try {
       const limit = req.query.limit ? Number(req.query.limit) : undefined;
@@ -367,7 +391,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/articles/:id/comments", async (req, res) => {
     try {
-      const comments = await storage.getArticleComments(Number(req.params.id));
+      const userId = req.isAuthenticated() ? req.user!.id : undefined;
+      const comments = await storage.getArticleComments(Number(req.params.id), userId);
       res.json(comments);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch article comments" });
@@ -397,13 +422,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const comment = await storage.likeComment(Number(req.params.id), req.user!.id);
-      if (!comment) {
+      const result = await storage.toggleCommentLike(Number(req.params.id), req.user!.id);
+      if (!result) {
         return res.status(404).json({ message: "Comment not found" });
       }
-      res.json(comment);
+      res.json(result);
     } catch (error) {
-      res.status(500).json({ message: "Failed to like comment" });
+      res.status(500).json({ message: "Failed to update comment like status" });
     }
   });
 
@@ -578,6 +603,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(topCommenters);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch top commenters" });
+    }
+  });
+
+  // User dashboard endpoints
+  app.get("/api/users/:userId/likes", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = Number(req.params.userId);
+      
+      // Get all likes for this user
+      const likes = await storage.getUserLikes(userId);
+      
+      // For each like, get the article details
+      const articles = [];
+      for (const like of likes) {
+        const article = await storage.getArticleWithDetails(like.articleId);
+        if (article) {
+          articles.push({
+            id: article.id,
+            slug: article.slug,
+            title: article.title,
+            category: article.category.name,
+            date: new Date(article.createdAt).toISOString().split('T')[0]
+          });
+        }
+      }
+      
+      res.json(articles);
+    } catch (error) {
+      console.error("Error fetching user likes:", error);
+      res.status(500).json({ message: "Failed to fetch liked articles" });
+    }
+  });
+  
+  app.get("/api/users/:userId/comments", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = Number(req.params.userId);
+      
+      // Get all comments by this user
+      const comments = await storage.getUserComments(userId);
+      
+      // For each comment, get the article details
+      const articles = [];
+      for (const comment of comments) {
+        const article = await storage.getArticleWithDetails(comment.articleId);
+        if (article) {
+          articles.push({
+            id: article.id,
+            slug: article.slug,
+            title: article.title,
+            category: article.category.name,
+            date: new Date(article.createdAt).toISOString().split('T')[0],
+            comment: comment.content
+          });
+        }
+      }
+      
+      res.json(articles);
+    } catch (error) {
+      console.error("Error fetching user comments:", error);
+      res.status(500).json({ message: "Failed to fetch commented articles" });
+    }
+  });
+  
+  app.get("/api/users/:userId/stats", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const userId = Number(req.params.userId);
+      
+      // Get like count
+      const likes = await storage.getUserLikes(userId);
+      const totalLikes = likes.length;
+      
+      // Get comment count
+      const comments = await storage.getUserComments(userId);
+      const totalComments = comments.length;
+      
+      // Calculate reach (this is an example - adjust as needed)
+      // For now, we'll assume reach is the sum of view counts of all articles user has interacted with
+      const interactedArticleIds = new Set([
+        ...likes.map((like) => like.articleId),
+        ...comments.map((comment) => comment.articleId)
+      ]);
+      
+      // This is a placeholder - in a real app, you would track article views
+      const articleReach = interactedArticleIds.size * 50; // Assuming each article has ~50 views
+      
+      // Get last active date (most recent like or comment)
+      const allDates = [
+        ...likes.map((like) => new Date(like.createdAt).getTime()),
+        ...comments.map((comment) => new Date(comment.createdAt).getTime())
+      ];
+      
+      const lastActive = allDates.length > 0 
+        ? new Date(Math.max(...allDates)).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      
+      res.json({
+        totalLikes,
+        totalComments,
+        articleReach,
+        lastActive
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+      res.status(500).json({ message: "Failed to fetch user stats" });
+    }
+  });
+
+  // Advertisements endpoint - get all advertisements
+  app.get("/api/advertisements", async (req, res) => {
+    try {
+      const { position } = req.query;
+      
+      if (position) {
+        const advertisements = await storage.getAdvertisementsByPosition(position as string);
+        res.json(advertisements);
+      } else {
+        const advertisements = await storage.getAdvertisements();
+        res.json(advertisements);
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch advertisements" });
+    }
+  });
+  
+  app.get("/api/advertisements/all", async (req, res) => {
+    try {
+      const advertisements = await storage.getAdvertisements();
+      res.json(advertisements);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch advertisements" });
+    }
+  });
+  
+  app.get("/api/advertisements/:id", async (req, res) => {
+    try {
+      const advertisement = await storage.getAdvertisement(Number(req.params.id));
+      if (!advertisement) {
+        return res.status(404).json({ message: "Advertisement not found" });
+      }
+      res.json(advertisement);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch advertisement" });
+    }
+  });
+  
+  app.post("/api/advertisements", async (req, res) => {
+    try {
+      const advertisementData = insertAdvertisementSchema.parse(req.body);
+      const advertisement = await storage.createAdvertisement(advertisementData);
+      res.status(201).json(advertisement);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.log("ZodError on server:", JSON.stringify(error.errors, null, 2));
+        return res.status(400).json({ message: "Invalid advertisement data", errors: error.errors });
+      }
+      console.error("Non-Zod error on /api/advertisements POST:", error);
+      res.status(500).json({ message: "Failed to create advertisement" });
+    }
+  });
+  
+  app.patch("/api/advertisements/:id", async (req, res) => {
+    try {
+      const advertisementData = insertAdvertisementSchema.partial().parse(req.body);
+      const advertisement = await storage.updateAdvertisement(Number(req.params.id), advertisementData);
+      if (!advertisement) {
+        return res.status(404).json({ message: "Advertisement not found" });
+      }
+      res.json(advertisement);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid advertisement data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update advertisement" });
+    }
+  });
+  
+  app.delete("/api/advertisements/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteAdvertisement(Number(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Advertisement not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete advertisement" });
+    }
+  });
+  
+  // Advertisement metrics endpoints
+  app.post("/api/advertisements/impression/:id", async (req, res) => {
+    try {
+      const success = await storage.trackAdvertisementImpression(Number(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Advertisement not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to track impression" });
+    }
+  });
+  
+  app.post("/api/advertisements/click/:id", async (req, res) => {
+    try {
+      const success = await storage.trackAdvertisementClick(Number(req.params.id));
+      if (!success) {
+        return res.status(404).json({ message: "Advertisement not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to track click" });
     }
   });
 

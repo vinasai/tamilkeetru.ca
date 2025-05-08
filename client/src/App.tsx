@@ -11,10 +11,15 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import ManageArticles from "@/pages/admin/manage-articles";
 import CreateArticle from "@/pages/admin/create-article";
 import ManageCategories from "@/pages/admin/manage-categories";
+import ManageAdvertisements from "@/pages/admin/manage-advertisements";
+import CreateAdvertisement from "@/pages/admin/create-advertisement";
 import ClientDashboard from "@/pages/client-dashboard";
 import PrivacyPolicyPage from "@/pages/privacy-policy";
 import TermsOfServicePage from "@/pages/terms-of-service";
 import CookiesPolicyPage from "@/pages/cookies-policy";
+import AdvertisePage from "@/pages/advertise";
+import AboutPage from "@/pages/about";
+import ContactPage from "@/pages/contact";
 import ProfilePage from "@/pages/profile";
 import SitemapPage from "@/pages/sitemap";
 import Header from "@/components/layout/header";
@@ -34,6 +39,9 @@ function Router() {
       <Route path="/terms-of-service" component={TermsOfServicePage} />
       <Route path="/cookies-policy" component={CookiesPolicyPage} />
       <Route path="/sitemap" component={SitemapPage} />
+      <Route path="/advertise" component={AdvertisePage} />
+      <Route path="/about" component={AboutPage} />
+      <Route path="/contact" component={ContactPage} />
       
       <ProtectedRoute path="/profile" component={ProfilePage} />
       <ProtectedRoute path="/client-dashboard" component={ClientDashboard} />
@@ -42,6 +50,9 @@ function Router() {
       <ProtectedRoute path="/admin/articles/create" component={CreateArticle} />
       <ProtectedRoute path="/admin/articles/edit/:id" component={CreateArticle} />
       <ProtectedRoute path="/admin/categories" component={ManageCategories} />
+      <ProtectedRoute path="/admin/manage-advertisements" component={ManageAdvertisements} />
+      <ProtectedRoute path="/admin/advertisements/create" component={CreateAdvertisement} />
+      <ProtectedRoute path="/admin/advertisements/edit/:id" component={CreateAdvertisement} />
       <Route component={NotFound} />
     </Switch>
   );

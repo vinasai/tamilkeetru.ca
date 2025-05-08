@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useLocation, Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArticleWithDetails } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import RelatedArticles from "@/components/articles/related-articles";
@@ -13,6 +13,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { useScrollTop } from "@/hooks/use-scroll-top";
+import AdDisplay from "@/components/advertisements/ad-display";
+
+interface Advertisement {
+  id: number;
+  position: string;
+  isActive: boolean;
+}
 
 export default function ArticlePage() {
   const { slug } = useParams();
@@ -20,13 +27,56 @@ export default function ArticlePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLiked, setIsLiked] = useState(false);
+  const [showShareToast, setShowShareToast] = useState(false);
   
   // Use the scroll to top hook
   useScrollTop();
   
+  const queryClient = useQueryClient();
+  
+  // Fetch article data
   const { data: article, isLoading, error } = useQuery<ArticleWithDetails>({
     queryKey: [`/api/articles/slug/${slug}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/articles/slug/${slug}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch article");
+      }
+      return response.json();
+    },
   });
+  
+  // Check if sidebar advertisements are available
+  const { data: sidebarAds } = useQuery<Advertisement[]>({
+    queryKey: ['/api/advertisements', 'sidebar'],
+    queryFn: async () => {
+      const response = await fetch('/api/advertisements?position=sidebar');
+      if (!response.ok) {
+        throw new Error('Failed to fetch advertisements');
+      }
+      return response.json();
+    },
+    staleTime: 300000, // 5 minutes
+    enabled: !isLoading && !!article, // Only run after article is loaded
+  });
+  
+  // Check if article-page advertisements are available
+  const { data: articleAds } = useQuery<Advertisement[]>({
+    queryKey: ['/api/advertisements', 'article-page'],
+    queryFn: async () => {
+      const response = await fetch('/api/advertisements?position=article-page');
+      if (!response.ok) {
+        throw new Error('Failed to fetch advertisements');
+      }
+      return response.json();
+    },
+    staleTime: 300000, // 5 minutes
+    enabled: !isLoading && !!article, // Only run after article is loaded
+  });
+  
+  // Determine if there are active ads for each position
+  const hasSidebarAds = sidebarAds && sidebarAds.length > 0;
+  const hasArticleAds = articleAds && articleAds.length > 0;
 
   // Check if user has liked this article
   useEffect(() => {
@@ -51,63 +101,84 @@ export default function ArticlePage() {
     }
   }, [article]);
 
-  const handleLike = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to like articles",
-        variant: "destructive"
+  // Handle Like button click
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      if (!article) return;
+      
+      return apiRequest(
+        isLiked ? "DELETE" : "POST", 
+        `/api/articles/${article.id}/like`
+      );
+    },
+    onSuccess: () => {
+      setIsLiked(!isLiked);
+      
+      // Update article data to reflect new like count
+      queryClient.setQueryData([`/api/articles/slug/${slug}`], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        return {
+          ...oldData,
+          likeCount: isLiked ? oldData.likeCount - 1 : oldData.likeCount + 1
+        };
       });
-      return;
-    }
-
-    if (!article) return;
-
-    try {
-      await apiRequest("POST", `/api/articles/${article.id}/like`, { userId: user.id });
-      queryClient.invalidateQueries({ queryKey: [`/api/articles/slug/${slug}`] });
-      setIsLiked(true);
+      
       toast({
-        title: "Success!",
-        description: "You liked this article."
+        title: isLiked ? "Like removed" : "Article liked",
+        description: isLiked ? "You've removed your like" : "Thanks for your feedback!",
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to like article",
-        variant: "destructive"
+        description: "Failed to update like status. Please try again.",
+        variant: "destructive",
       });
-    }
+    },
+  });
+
+  const handleLike = async () => {
+    likeMutation.mutate();
   };
 
+  // Handle social sharing
   const handleShare = (platform: string) => {
-    const url = window.location.href;
-    const title = article?.title || "Tamil Keetru Article";
+    if (!article) return;
+    
+    const articleUrl = `${window.location.origin}/article/${article.slug}`;
+    const articleTitle = article.title;
+    let shareUrl = '';
     
     switch (platform) {
       case 'facebook':
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(articleUrl)}`;
         break;
       case 'twitter':
-        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`, '_blank');
+        shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(articleUrl)}&text=${encodeURIComponent(articleTitle)}`;
         break;
       case 'linkedin':
-        window.open(`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}`, '_blank');
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(articleUrl)}`;
         break;
       case 'whatsapp':
-        window.open(`https://wa.me/?text=${encodeURIComponent(title + ' ' + url)}`, '_blank');
+        shareUrl = `https://wa.me/?text=${encodeURIComponent(`${articleTitle} ${articleUrl}`)}`;
         break;
       case 'email':
-        window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`;
+        shareUrl = `mailto:?subject=${encodeURIComponent(articleTitle)}&body=${encodeURIComponent(`I thought you might be interested in this article: ${articleUrl}`)}`;
         break;
-      default:
-        navigator.clipboard.writeText(url).then(() => {
-          toast({
-            title: "Link copied!",
-            description: "Article link copied to clipboard"
-          });
-        });
     }
+    
+    if (platform === 'email') {
+      window.location.href = shareUrl;
+    } else {
+      window.open(shareUrl, '_blank', 'width=600,height=400');
+    }
+    
+    // Show toast notification
+    toast({
+      title: "Shared!",
+      description: `Article shared on ${platform}`,
+    });
   };
 
   if (isLoading) {
@@ -193,34 +264,26 @@ export default function ArticlePage() {
                 </div>
               </div>
               
-              <img 
-                src={article.coverImage} 
-                alt={article.title} 
-                className="w-full h-auto object-cover mb-6 rounded-md"
-              />
-              
-              {/* Article Content - First Half */}
-              <div 
-                className="prose max-w-none mb-6" 
-                dangerouslySetInnerHTML={{ __html: article.content.substring(0, article.content.length / 2) }}
-              ></div>
-              
-              {/* Mid-article Advertisement */}
-              <div className="my-8 bg-gradient-to-r from-blue-500 to-indigo-600 p-4 rounded-md text-white flex flex-col md:flex-row items-center justify-between">
-                <div className="mb-4 md:mb-0">
-                  <h3 className="text-lg font-bold mb-1">Tamil Keetru Premium</h3>
-                  <p className="text-sm text-white/90">Get unlimited access to exclusive content and ad-free reading</p>
-                </div>
-                <button className="bg-white text-blue-600 font-bold py-2 px-6 rounded hover:bg-blue-50 transition-colors">
-                  Try Free for 7 Days
-                </button>
+              {/* Article Featured Image */}
+              <div className="mb-6">
+                <img 
+                  src={article.coverImage} 
+                  alt={article.title} 
+                  className="w-full h-96 rounded-md mb-2"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "https://placehold.co/1200x630?text=Tamil+Keetru";
+                  }}
+                />
               </div>
               
-              {/* Article Content - Second Half */}
+              {/* Article Content */}
               <div 
-                className="prose max-w-none mb-6" 
-                dangerouslySetInnerHTML={{ __html: article.content.substring(article.content.length / 2) }}
-              ></div>
+                className="prose max-w-none font-serif mb-8"
+                dangerouslySetInnerHTML={{ __html: article.content }}
+              />
+              
+              {/* Ad placement within article content - only show if ads exist */}
+              {hasArticleAds && <AdDisplay position="article-page" />}
               
               <div className="flex items-center justify-between py-4 border-t border-b border-gray-200 mb-6">
                 <div className="flex items-center space-x-4">
@@ -294,7 +357,7 @@ export default function ArticlePage() {
               </div>
               
               {/* Related Articles (Top Related News) */}
-              <div className="mb-8">
+              {/* <div className="mb-8">
                 <h3 className="text-xl font-bold font-['Roboto_Condensed'] mb-4 border-l-4 border-secondary pl-3">
                   TOP RELATED NEWS
                 </h3>
@@ -303,12 +366,15 @@ export default function ArticlePage() {
                   categoryId={article.categoryId} 
                   limit={3}
                 />
-              </div>
+              </div> */}
             </div>
           </div>
           
           {/* Sidebar - 4 cols */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 space-y-6">
+            {/* Ad placement in sidebar - only show if ads exist */}
+            {hasSidebarAds && <AdDisplay position="sidebar" />}
+            
             {/* Sticky Sidebar */}
             <div className="lg:sticky lg:top-24 space-y-8">
               {/* Advertisement */}
@@ -318,9 +384,9 @@ export default function ArticlePage() {
                     <i className="fas fa-podcast text-3xl"></i>
                   </div>
                   <h3 className="font-bold text-xl mb-2">DAILY PODCAST</h3>
-                  <p className="text-sm mb-4">Listen to our Tamil Keetru podcast</p>
-                  <button className="bg-white text-orange-500 font-bold px-4 py-2 rounded">
-                    Listen Now
+                  <p className="text-sm mb-4">Watch our Tamil Keetru youtube channel</p>
+                  <button className="bg-white text-orange-500 font-bold px-4 py-2 rounded" onClick={() => window.open('https://www.youtube.com/@TamilKeetru', '_blank')}>
+                    Watch Now
                   </button>
                 </div>
               </div>
@@ -332,7 +398,7 @@ export default function ArticlePage() {
                 </h3>
                 <div className="space-y-4">
                   {/* We'll use a query to fetch popular articles from the same category */}
-                  <PopularCategoryArticles categoryId={article.categoryId} exclude={article.id} />
+                  <PopularCategoryArticles categorySlug={article.category.slug} exclude={article.id} />
                 </div>
               </div>
               
@@ -359,13 +425,15 @@ export default function ArticlePage() {
                 </form>
               </div>
               
-              {/* Second Advertisement */}
-              <div className="bg-white p-5 rounded-md shadow-sm">
-                <div className="border border-dashed border-gray-300 p-8 text-center bg-gray-50 rounded">
-                  <p className="text-gray-500 font-bold">ADVERTISEMENT</p>
-                  <p className="text-gray-400 text-sm">300x250</p>
+              {/* Only show this placeholder ad when no real sidebar ads exist */}
+              {!hasSidebarAds && (
+                <div className="bg-white p-5 rounded-md shadow-sm">
+                  <div className="border border-dashed border-gray-300 p-8 text-center bg-gray-50 rounded">
+                    <p className="text-gray-500 font-bold">ADVERTISEMENT</p>
+                    <p className="text-gray-400 text-sm">300x250</p>
+                  </div>
                 </div>
-              </div>
+              )}
               
               {/* Tags */}
               <div className="bg-white p-5 rounded-md shadow-sm">

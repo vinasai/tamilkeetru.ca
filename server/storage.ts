@@ -4,7 +4,8 @@ import {
   Article, InsertArticle, ArticleWithDetails,
   Comment, InsertComment, CommentWithUser,
   Like, InsertLike,
-  Newsletter, InsertNewsletter
+  Newsletter, InsertNewsletter,
+  Advertisement, InsertAdvertisement
 } from "@shared/schema";
 import session from "express-session";
 
@@ -49,11 +50,12 @@ export interface IStorage {
   
   // Comment methods
   getComments(): Promise<Comment[]>;
-  getArticleComments(articleId: number): Promise<CommentWithUser[]>;
+  getArticleComments(articleId: number, userId?: number): Promise<CommentWithUser[]>;
   createComment(comment: InsertComment): Promise<Comment>;
   updateComment(id: number, comment: Partial<Comment>): Promise<Comment | undefined>;
   deleteComment(id: number): Promise<boolean>;
   likeComment(commentId: number, userId: number): Promise<Comment | undefined>;
+  toggleCommentLike(commentId: number, userId: number): Promise<{ liked: boolean; newLikeCount: number; isLikedByCurrentUser: boolean } | null>;
   
   // Like methods
   getArticleLikes(articleId: number): Promise<Like[]>;
@@ -61,11 +63,25 @@ export interface IStorage {
   createLike(like: InsertLike): Promise<Like>;
   deleteLike(articleId: number, userId: number): Promise<boolean>;
   
+  // User dashboard methods
+  getUserLikes(userId: number): Promise<Like[]>;
+  getUserComments(userId: number): Promise<Comment[]>;
+  
   // Newsletter methods
   getNewsletterSubscribers(): Promise<Newsletter[]>;
   getNewsletterSubscriber(email: string): Promise<Newsletter | undefined>;
   createNewsletterSubscriber(newsletter: InsertNewsletter): Promise<Newsletter>;
   deleteNewsletterSubscriber(id: number): Promise<boolean>;
+  
+  // Advertisement methods
+  getAdvertisements(): Promise<Advertisement[]>;
+  getAdvertisementsByPosition(position: string): Promise<Advertisement[]>;
+  getAdvertisement(id: number): Promise<Advertisement | undefined>;
+  createAdvertisement(advertisement: InsertAdvertisement): Promise<Advertisement>;
+  updateAdvertisement(id: number, advertisement: Partial<Advertisement>): Promise<Advertisement | undefined>;
+  deleteAdvertisement(id: number): Promise<boolean>;
+  trackAdvertisementImpression(id: number): Promise<boolean>;
+  trackAdvertisementClick(id: number): Promise<boolean>;
   
   // Session store
   sessionStore: session.Store;

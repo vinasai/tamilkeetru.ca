@@ -12,54 +12,84 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { Article, ArticleWithDetails } from "@shared/schema";
 
-// Mock data - replace with actual API calls
+// Define types for the API responses
+interface LikedArticle {
+  id: number;
+  slug: string;
+  title: string;
+  category: string;
+  date: string;
+}
+
+interface CommentedArticle {
+  id: number;
+  slug: string;
+  title: string;
+  category: string;
+  date: string;
+  comment: string;
+}
+
+interface UserStats {
+  totalLikes: number;
+  totalComments: number;
+  articleReach: number;
+  lastActive: string;
+}
+
+// Real API calls
 const fetchLikedArticles = async (userId: string | number) => {
-  // Example API call
-  // return await fetch(`/api/users/${userId}/likes`).then(res => res.json());
-  
-  // Mock data
-  return [
-    { id: 1, title: "Understanding Climate Change", category: "science", date: "2023-06-15" },
-    { id: 2, title: "Technology Trends in 2023", category: "technology", date: "2023-05-22" },
-    { id: 3, title: "Global Economic Outlook", category: "business", date: "2023-07-03" },
-  ];
+  try {
+    const response = await fetch(`/api/users/${userId}/likes`);
+    if (!response.ok) {
+      console.error("Failed to fetch liked articles:", response.statusText);
+      return [];
+    }
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching liked articles:", error);
+    return [];
+  }
 };
 
 const fetchCommentedArticles = async (userId: string | number) => {
-  // Example API call
-  // return await fetch(`/api/users/${userId}/comments`).then(res => res.json());
-  
-  // Mock data
-  return [
-    { 
-      id: 1, 
-      title: "Latest Political Developments", 
-      category: "politics", 
-      date: "2023-06-10",
-      comment: "This is a very insightful article that addresses many important issues." 
-    },
-    { 
-      id: 2, 
-      title: "Sports Highlights of the Week", 
-      category: "sports", 
-      date: "2023-06-05",
-      comment: "I think the analysis in this article is spot-on!" 
-    },
-  ];
+  try {
+    const response = await fetch(`/api/users/${userId}/comments`);
+    if (!response.ok) {
+      console.error("Failed to fetch commented articles:", response.statusText);
+      return [];
+    }
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching commented articles:", error);
+    return [];
+  }
 };
 
 const fetchUserStats = async (userId: string | number) => {
-  // Example API call
-  // return await fetch(`/api/users/${userId}/stats`).then(res => res.json());
-  
-  // Mock data
-  return {
-    totalLikes: 15,
-    totalComments: 8,
-    articleReach: 650,
-    lastActive: "2023-07-10",
-  };
+  try {
+    const response = await fetch(`/api/users/${userId}/stats`);
+    if (!response.ok) {
+      console.error("Failed to fetch user stats:", response.statusText);
+      return {
+        totalLikes: 0,
+        totalComments: 0,
+        articleReach: 0,
+        lastActive: new Date().toISOString().split('T')[0]
+      };
+    }
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching user stats:", error);
+    return {
+      totalLikes: 0,
+      totalComments: 0,
+      articleReach: 0,
+      lastActive: new Date().toISOString().split('T')[0]
+    };
+  }
 };
 
 export default function ClientDashboard() {
@@ -71,19 +101,19 @@ export default function ClientDashboard() {
     return <div>Loading...</div>;
   }
   
-  const { data: likedArticles, isLoading: likesLoading } = useQuery({
+  const { data: likedArticles, isLoading: likesLoading } = useQuery<LikedArticle[]>({
     queryKey: ["likedArticles", user.id],
     queryFn: () => fetchLikedArticles(user.id),
     enabled: !!user.id,
   });
   
-  const { data: commentedArticles, isLoading: commentsLoading } = useQuery({
+  const { data: commentedArticles, isLoading: commentsLoading } = useQuery<CommentedArticle[]>({
     queryKey: ["commentedArticles", user.id],
     queryFn: () => fetchCommentedArticles(user.id),
     enabled: !!user.id,
   });
   
-  const { data: userStats, isLoading: statsLoading } = useQuery({
+  const { data: userStats, isLoading: statsLoading } = useQuery<UserStats>({
     queryKey: ["userStats", user.id],
     queryFn: () => fetchUserStats(user.id),
     enabled: !!user.id,
@@ -150,9 +180,9 @@ export default function ClientDashboard() {
                   <p>Loading...</p>
                 ) : likedArticles && likedArticles.length > 0 ? (
                   <ul className="space-y-3">
-                    {likedArticles.slice(0, 3).map(article => (
+                    {likedArticles.slice(0, 3).map((article: LikedArticle) => (
                       <li key={article.id} className="border-b pb-3 last:border-0">
-                        <Link href={`/article/${article.id}`} className="hover:text-secondary">
+                        <Link href={`/article/${article.slug}`} className="hover:text-secondary">
                           <h3 className="font-medium">{article.title}</h3>
                         </Link>
                         <div className="flex items-center mt-1 text-sm text-gray-500">
@@ -182,9 +212,9 @@ export default function ClientDashboard() {
                   <p>Loading...</p>
                 ) : commentedArticles && commentedArticles.length > 0 ? (
                   <ul className="space-y-3">
-                    {commentedArticles.slice(0, 2).map(article => (
+                    {commentedArticles.slice(0, 2).map((article: CommentedArticle) => (
                       <li key={article.id} className="border-b pb-3 last:border-0">
-                        <Link href={`/article/${article.id}`} className="hover:text-secondary">
+                        <Link href={`/article/${article.slug}`} className="hover:text-secondary">
                           <h3 className="font-medium">{article.title}</h3>
                         </Link>
                         <p className="text-sm mt-1 line-clamp-2">{article.comment}</p>
@@ -220,9 +250,9 @@ export default function ClientDashboard() {
                 <p>Loading...</p>
               ) : likedArticles && likedArticles.length > 0 ? (
                 <ul className="space-y-4">
-                  {likedArticles.map(article => (
+                  {likedArticles.map((article: LikedArticle) => (
                     <li key={article.id} className="border-b pb-4 last:border-0">
-                      <Link href={`/article/${article.id}`} className="hover:text-secondary">
+                      <Link href={`/article/${article.slug}`} className="hover:text-secondary">
                         <h3 className="font-medium text-lg">{article.title}</h3>
                       </Link>
                       <div className="flex items-center mt-2 text-sm text-gray-500">
@@ -256,9 +286,9 @@ export default function ClientDashboard() {
                 <p>Loading...</p>
               ) : commentedArticles && commentedArticles.length > 0 ? (
                 <ul className="space-y-6">
-                  {commentedArticles.map(article => (
+                  {commentedArticles.map((article: CommentedArticle) => (
                     <li key={article.id} className="border-b pb-6 last:border-0">
-                      <Link href={`/article/${article.id}`} className="hover:text-secondary">
+                      <Link href={`/article/${article.slug}`} className="hover:text-secondary">
                         <h3 className="font-medium text-lg">{article.title}</h3>
                       </Link>
                       <div className="bg-gray-50 p-3 rounded-md my-2 text-sm">

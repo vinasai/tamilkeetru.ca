@@ -5,7 +5,9 @@ import {
   Article, InsertArticle, ArticleWithDetails,
   Comment, InsertComment, CommentWithUser,
   Like, InsertLike,
-  Newsletter, InsertNewsletter
+  Newsletter, InsertNewsletter,
+  CommentLike,
+  Advertisement, InsertAdvertisement
 } from '@shared/schema';
 
 // Add global error handlers to prevent server crashes
@@ -154,6 +156,18 @@ const CommentSchema = new Schema<CommentDocument>({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Comment Like Schema
+export interface CommentLikeDocument extends Omit<CommentLike, 'id'>, Document {
+  id: number;
+}
+
+const CommentLikeSchema = new Schema<CommentLikeDocument>({
+  id: { type: Number, required: true, unique: true },
+  userId: { type: Number, required: true },
+  commentId: { type: Number, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+
 // Like Schema
 export interface LikeDocument extends Omit<Like, 'id'>, Document {
   id: number;
@@ -179,12 +193,38 @@ const NewsletterSchema = new Schema<NewsletterDocument>({
   createdAt: { type: Date, default: Date.now }
 });
 
+// Advertisement Schema
+export interface AdvertisementDocument extends Omit<Advertisement, 'id'>, Document {
+  id: number;
+}
+
+const AdvertisementSchema = new Schema<AdvertisementDocument>({
+  id: { type: Number, required: true, unique: true },
+  title: { type: String, required: true },
+  description: { type: String, required: true },
+  imageUrl: { type: String, required: true },
+  linkUrl: { type: String, required: true },
+  backgroundColor: { type: String, required: true },
+  textColor: { type: String, required: true },
+  position: { type: String, required: true },
+  isActive: { type: Boolean, default: true },
+  priority: { type: Number, default: 1 },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, required: true },
+  impressions: { type: Number, default: 0 },
+  clicks: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
 // Create models
 export const UserModel = mongoose.model<UserDocument>('User', UserSchema);
 export const CategoryModel = mongoose.model<CategoryDocument>('Category', CategorySchema);
 export const ArticleModel = mongoose.model<ArticleDocument>('Article', ArticleSchema);
 export const CommentModel = mongoose.model<CommentDocument>('Comment', CommentSchema);
+export const CommentLikeModel = mongoose.model<CommentLikeDocument>('CommentLike', CommentLikeSchema);
 export const LikeModel = mongoose.model<LikeDocument>('Like', LikeSchema);
 export const NewsletterModel = mongoose.model<NewsletterDocument>('Newsletter', NewsletterSchema);
+export const AdvertisementModel = mongoose.model<AdvertisementDocument>('Advertisement', AdvertisementSchema);
 
 export { connectDB }; 

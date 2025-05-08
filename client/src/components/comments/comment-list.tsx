@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CommentWithUser } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import CommentForm from "./comment-form";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -13,13 +13,38 @@ interface CommentListProps {
 }
 
 export default function CommentList({ articleId }: CommentListProps) {
-  const { data: comments, isLoading } = useQuery<CommentWithUser[]>({
-    queryKey: [`/api/articles/${articleId}/comments`],
+  const { user } = useAuth();
+  const { data: comments, isLoading, refetch } = useQuery<CommentWithUser[]>({
+    queryKey: [`/api/articles/${articleId}/comments`, user?.id],
+    enabled: !!articleId,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
   
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const { user } = useAuth();
+  // Track the likes manually to ensure UI updates
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<number>>(new Set());
   const { toast } = useToast();
+
+  // Initialize liked comment IDs from data
+  useEffect(() => {
+    if (comments && comments.length > 0) {
+      const likedIds = new Set<number>(
+        comments
+          .filter(comment => comment.isLikedByCurrentUser)
+          .map(comment => comment.id)
+      );
+      console.log("Setting initial liked comment IDs:", Array.from(likedIds));
+      setLikedCommentIds(likedIds);
+    }
+  }, [comments]);
+
+  useEffect(() => {
+    // Force a refetch when user changes
+    if (user) {
+      refetch();
+    }
+  }, [user, refetch]);
 
   const handleLikeComment = async (commentId: number) => {
     if (!user) {
@@ -32,19 +57,50 @@ export default function CommentList({ articleId }: CommentListProps) {
     }
 
     try {
-      await apiRequest("POST", `/api/comments/${commentId}/like`, { userId: user.id });
-      queryClient.invalidateQueries({ queryKey: [`/api/articles/${articleId}/comments`] });
-      toast({
-        title: "Success!",
-        description: "You liked this comment."
-      });
+      console.log("Sending like request for comment:", commentId, "user:", user.id);
+      const response = await apiRequest("POST", `/api/comments/${commentId}/like`, { userId: user.id });
+      const result = await response.json();
+      console.log("Like result:", result);
+
+      if (result) {
+        // Update local like state first for immediate UI feedback
+        setLikedCommentIds(prev => {
+          const newSet = new Set(prev);
+          if (result.isLikedByCurrentUser) {
+            newSet.add(commentId);
+          } else {
+            newSet.delete(commentId);
+          }
+          return newSet;
+        });
+        
+        // Then force refetch to ensure server state is reflected
+        await refetch();
+        
+        toast({
+          title: result.liked ? "Comment Liked!" : "Comment Unliked!",
+          description: result.liked ? "You liked this comment." : "You unliked this comment."
+        });
+      }
     } catch (error) {
+      console.error("Error liking comment:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to like comment",
+        description: error instanceof Error ? error.message : "Failed to update like status",
         variant: "destructive"
       });
     }
+  };
+
+  // Helper function to check if a comment is liked
+  const isCommentLiked = (commentId: number) => {
+    // First check our local state for immediate UI feedback
+    if (likedCommentIds.has(commentId)) {
+      return true;
+    }
+    // Then fall back to the server state
+    const comment = comments?.find(c => c.id === commentId);
+    return comment?.isLikedByCurrentUser || false;
   };
 
   if (isLoading) {
@@ -77,11 +133,17 @@ export default function CommentList({ articleId }: CommentListProps) {
     );
   }
 
-  // Get top-level comments and organize replies
   const topLevelComments = comments.filter(comment => !comment.parentId);
   const commentReplies = comments.filter(comment => comment.parentId);
 
-  // Organizing replies into a map for easier access
+  // Debug isLikedByCurrentUser flag
+  console.log("Comments with like status:", comments.map(c => ({ 
+    id: c.id, 
+    content: c.content.substring(0, 20),
+    isLikedByCurrentUser: c.isLikedByCurrentUser,
+    isLikedLocally: likedCommentIds.has(c.id)
+  })));
+
   const repliesMap = new Map<number, CommentWithUser[]>();
   commentReplies.forEach(reply => {
     if (reply.parentId) {
@@ -112,33 +174,34 @@ export default function CommentList({ articleId }: CommentListProps) {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="p-0 h-auto text-gray-500 hover:text-primary flex items-center"
+                  className={`p-1 h-auto flex items-center ${isCommentLiked(comment.id) ? 'text-red-500' : 'text-gray-500 hover:text-black'}`}
                   onClick={() => handleLikeComment(comment.id)}
                 >
-                  <i className="far fa-thumbs-up mr-1 align-text-bottom"></i> {comment.likeCount}
+                  <i className={`${isCommentLiked(comment.id) ? 'fas' : 'far'} fa-thumbs-up mr-1 align-text-bottom mt-1`}></i> {comment.likeCount}
                 </Button>
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="p-0 h-auto text-gray-500 hover:text-primary flex items-center"
+                  className="p-1 h-auto text-gray-500 hover:text-primary flex items-center"
                   onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
                 >
                   {replyingTo === comment.id ? 'Cancel' : 'Reply'}
                 </Button>
               </div>
               
-              {/* Reply form */}
               {replyingTo === comment.id && (
                 <div className="mt-3 ml-6 pt-3">
                   <CommentForm 
                     articleId={articleId} 
                     parentId={comment.id}
-                    onSuccess={() => setReplyingTo(null)}
+                    onSuccess={() => {
+                      setReplyingTo(null);
+                      refetch();
+                    }}
                   />
                 </div>
               )}
               
-              {/* Nested replies */}
               {repliesMap.get(comment.id)?.map(reply => (
                 <div key={reply.id} className="mt-3 ml-6 pt-3 border-t border-gray-100">
                   <div className="flex items-start">
@@ -159,10 +222,10 @@ export default function CommentList({ articleId }: CommentListProps) {
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="p-0 h-auto text-gray-500 hover:text-primary flex items-center"
+                          className={`p-1 h-auto flex items-center ${isCommentLiked(reply.id) ? 'text-red-500' : 'text-gray-500 hover:text-black'}`}
                           onClick={() => handleLikeComment(reply.id)}
                         >
-                          <i className="far fa-thumbs-up mr-1 align-text-bottom"></i> {reply.likeCount}
+                          <i className={`${isCommentLiked(reply.id) ? 'fas' : 'far'} fa-thumbs-up mr-1 align-text-bottom mt-1`}></i> {reply.likeCount}
                         </Button>
                       </div>
                     </div>
@@ -174,12 +237,12 @@ export default function CommentList({ articleId }: CommentListProps) {
         </div>
       ))}
       
-      {comments.length > 5 && (
+      {comments && comments.length > 5 && (
         <div className="text-center">
           <Button 
             variant="ghost" 
             className="text-primary font-medium hover:text-primary/80"
-            onClick={() => queryClient.invalidateQueries({ queryKey: [`/api/articles/${articleId}/comments`] })}
+            onClick={() => refetch()}
           >
             Load More Comments
           </Button>

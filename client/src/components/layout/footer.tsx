@@ -4,12 +4,44 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { ArticleWithDetails } from "@shared/schema";
+import { formatDistanceToNow } from "date-fns";
+import AdDisplay from "@/components/advertisements/ad-display";
+
+interface Advertisement {
+  id: number;
+  position: string;
+  isActive: boolean;
+}
 
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  // Fetch latest articles
+  const { data: latestArticles, isLoading: isArticlesLoading } = useQuery<ArticleWithDetails[]>({
+    queryKey: ['/api/articles/latest'],
+    staleTime: 300000, // 5 minutes
+  });
+  
+  // Check if footer advertisements are available
+  const { data: footerAds } = useQuery<Advertisement[]>({
+    queryKey: ['/api/advertisements', 'footer'],
+    queryFn: async () => {
+      const response = await fetch('/api/advertisements?position=footer');
+      if (!response.ok) {
+        throw new Error('Failed to fetch advertisements');
+      }
+      return response.json();
+    },
+    staleTime: 300000, // 5 minutes
+  });
+  
+  // Determine if there are active ads for the footer position
+  const hasFooterAds = footerAds && footerAds.length > 0;
+  
   const handleNewsletterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!email || !email.includes('@')) {
@@ -55,10 +87,7 @@ export default function Footer() {
   const quickLinks = [
     { name: "About Us", path: "/about" },
     { name: "Contact", path: "/contact" },
-    { name: "Careers", path: "/careers" },
     { name: "Advertise", path: "/advertise" },
-    { name: "Top Stories", path: "/top-stories" },
-    { name: "Most Viewed", path: "/popular" },
   ];
 
   return (
@@ -127,24 +156,33 @@ export default function Footer() {
               <span className="inline-block border-b-2 border-secondary pb-2">LATEST NEWS</span>
             </h4>
             <ul className="space-y-4 text-sm">
-              <li className="pb-4 border-b border-gray-200">
-                <Link href="/article/global-markets-rally" className="text-darkText hover:text-secondary transition-colors">
-                  Global Markets Rally as Central Banks Cut Interest Rates
-                </Link>
-                <p className="text-gray-500 text-xs mt-1"><i className="far fa-clock mr-1"></i> April 25, 2025</p>
-              </li>
-              <li className="pb-4 border-b border-gray-200">
-                <Link href="/article/ai-climate-change-prediction" className="text-darkText hover:text-secondary transition-colors">
-                  New AI Model Can Predict Climate Change Impacts with Unprecedented Accuracy
-                </Link>
-                <p className="text-gray-500 text-xs mt-1"><i className="far fa-clock mr-1"></i> April 23, 2025</p>
-              </li>
-              <li className="pb-4 border-b border-gray-200">
-                <Link href="/article/cancer-treatment-breakthrough" className="text-darkText hover:text-secondary transition-colors">
-                  Revolutionary Cancer Treatment Shows 90% Success Rate in Clinical Trials
-                </Link>
-                <p className="text-gray-500 text-xs mt-1"><i className="far fa-clock mr-1"></i> April 22, 2025</p>
-              </li>
+              {isArticlesLoading ? (
+                // Loading skeleton
+                Array(3).fill(0).map((_, index) => (
+                  <li key={index} className="pb-4 border-b border-gray-200 animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-1/3"></div>
+                  </li>
+                ))
+              ) : latestArticles && latestArticles.length > 0 ? (
+                // Display latest articles
+                latestArticles.map((article) => (
+                  <li key={article.id} className="pb-4 border-b border-gray-200">
+                    <Link href={`/article/${article.slug}`} className="text-darkText hover:text-secondary transition-colors">
+                      {article.title}
+                    </Link>
+                    <p className="text-gray-500 text-xs mt-1">
+                      <i className="far fa-clock mr-1"></i> 
+                      {formatDistanceToNow(new Date(article.createdAt), { addSuffix: true })}
+                    </p>
+                  </li>
+                ))
+              ) : (
+                // Fallback if no articles
+                <li className="pb-4 border-b border-gray-200">
+                  <p className="text-gray-500">No articles available</p>
+                </li>
+              )}
             </ul>
           </div>
           
@@ -166,7 +204,7 @@ export default function Footer() {
               ))}
             </ul>
             
-            {/* <h4 className="text-lg font-bold font-['Roboto_Condensed'] mt-8 mb-6 relative text-darkText">
+            <h4 className="text-lg font-bold font-['Roboto_Condensed'] mt-8 mb-6 relative text-darkText">
               <span className="inline-block border-b-2 border-secondary pb-2">QUICK LINKS</span>
             </h4>
             <ul className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
@@ -181,7 +219,7 @@ export default function Footer() {
                   </Link>
                 </li>
               ))}
-            </ul> */}
+            </ul>
           </div>
           
           <div>
@@ -236,6 +274,16 @@ export default function Footer() {
               </div>
             </div> */}
           </div>
+          
+          {/* Only render the advertisement section if footer ads are available */}
+          {hasFooterAds && (
+            <div>
+              <h4 className="text-lg font-bold font-['Roboto_Condensed'] mb-6 relative text-darkText">
+                <span className="inline-block border-b-2 border-secondary pb-2">ADVERTISEMENT</span>
+              </h4>
+              <AdDisplay position="footer" />
+            </div>
+          )}
         </div>
         
         {/* Bottom Footer */}

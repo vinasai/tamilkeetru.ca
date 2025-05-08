@@ -91,21 +91,26 @@ export const comments = pgTable("comments", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertCommentSchema = createInsertSchema(comments).pick({
-  articleId: true,
-  userId: true,
-  parentId: true,
-  content: true,
+export const insertCommentSchema = createInsertSchema(comments);
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = typeof comments.$inferInsert;
+
+export interface CommentWithUser extends Comment {
+  user: { id: number; username: string; isAdmin: boolean };
+  isLikedByCurrentUser?: boolean; // Added for persistent like status
+}
+
+// Comment Likes schema
+export const commentLikes = pgTable("comment_likes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  commentId: integer("comment_id").notNull().references(() => comments.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export type InsertComment = z.infer<typeof insertCommentSchema>;
-export type Comment = typeof comments.$inferSelect;
-
-// Full comment type with user info
-export type CommentWithUser = Comment & {
-  user: User;
-  replies?: CommentWithUser[];
-};
+export const insertCommentLikeSchema = createInsertSchema(commentLikes);
+export type CommentLike = typeof commentLikes.$inferSelect;
+export type InsertCommentLike = typeof commentLikes.$inferInsert;
 
 // Likes schema
 export const likes = pgTable("likes", {
@@ -136,3 +141,37 @@ export const insertNewsletterSchema = createInsertSchema(newsletters).pick({
 
 export type InsertNewsletter = z.infer<typeof insertNewsletterSchema>;
 export type Newsletter = typeof newsletters.$inferSelect;
+
+// Advertisements schema
+export const advertisements = pgTable("advertisements", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  imageUrl: text("image_url").notNull(),
+  linkUrl: text("link_url").notNull(),
+  backgroundColor: text("background_color").notNull(),
+  textColor: text("text_color").notNull(),
+  position: text("position").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  priority: integer("priority").default(1).notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  impressions: integer("impressions").default(0).notNull(),
+  clicks: integer("clicks").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Create a base schema from advertisements table, then customize it
+const baseAdvertisementSchema = createInsertSchema(advertisements);
+
+// Create a custom schema with string dates
+export const insertAdvertisementSchema = z.object({
+  ...baseAdvertisementSchema.shape,
+  // Override the date fields to accept strings (ISO format)
+  startDate: z.string().transform(str => new Date(str)),
+  endDate: z.string().transform(str => new Date(str)),
+});
+
+export type InsertAdvertisement = z.infer<typeof insertAdvertisementSchema>;
+export type Advertisement = typeof advertisements.$inferSelect;

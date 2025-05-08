@@ -4,7 +4,8 @@ import {
   articles, type Article, type InsertArticle, type ArticleWithDetails,
   comments, type Comment, type InsertComment, type CommentWithUser,
   likes, type Like, type InsertLike,
-  newsletters, type Newsletter, type InsertNewsletter
+  newsletters, type Newsletter, type InsertNewsletter,
+  advertisements, type Advertisement, type InsertAdvertisement
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 import session from "express-session";
@@ -16,8 +17,10 @@ import {
   CategoryModel,
   ArticleModel,
   CommentModel,
+  CommentLikeModel,
   LikeModel,
   NewsletterModel,
+  AdvertisementModel,
   connectDB,
   isMongoConnected,
   safeMongoExecute
@@ -34,7 +37,8 @@ const inMemoryData = {
   articles: [] as Article[],
   comments: [] as Comment[],
   likes: [] as Like[],
-  newsletters: [] as Newsletter[]
+  newsletters: [] as Newsletter[],
+  advertisements: [] as Advertisement[]
 };
 
 async function hashPassword(password: string) {
@@ -607,6 +611,286 @@ export class MongoStorage implements IStorage {
     });
   }
 
+  // Comment methods
+  async getComments(): Promise<Comment[]> {
+    return safeMongoExecute(async () => {
+      const comments = await CommentModel.find().sort({ createdAt: -1 });
+      return comments.map(comment => comment.toObject() as Comment);
+    }, inMemoryData.comments);
+  }
+
+  async getArticleComments(articleId: number, userId?: number): Promise<CommentWithUser[]> {
+    return safeMongoExecute(async () => {
+      console.log(`Getting comments for article ${articleId}, current user: ${userId || 'none'}`);
+      
+      const commentsFromDB = await CommentModel.find({ articleId }).sort({ createdAt: -1 });
+      
+      const enrichedComments = await Promise.all(
+        commentsFromDB.map(async (commentDoc) => {
+          const commentData = commentDoc.toObject();
+          const userDoc = await UserModel.findOne({ id: commentData.userId });
+          
+          let isLikedByCurrentUser = false;
+          if (userId) {
+            const commentLike = await CommentLikeModel.findOne({ 
+              commentId: commentData.id, 
+              userId: userId 
+            });
+            isLikedByCurrentUser = !!commentLike;
+            console.log(`Comment ${commentData.id} like status for user ${userId}: ${isLikedByCurrentUser} (${commentLike ? 'like found' : 'no like found'})`);
+          }
+          
+          return {
+            id: commentData.id,
+            articleId: commentData.articleId,
+            userId: commentData.userId,
+            parentId: commentData.parentId !== undefined ? commentData.parentId : null,
+            content: commentData.content,
+            likeCount: commentData.likeCount,
+            createdAt: commentData.createdAt,
+            user: userDoc ? {
+              id: userDoc.id,
+              username: userDoc.username,
+              isAdmin: userDoc.isAdmin
+            } : { id: 0, username: 'Unknown', isAdmin: false },
+            isLikedByCurrentUser: isLikedByCurrentUser
+          } as CommentWithUser; 
+        })
+      );
+      
+      console.log(`Returning ${enrichedComments.length} comments with like statuses`);
+      return enrichedComments;
+    }, []);
+  }
+
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    return safeMongoExecute(async () => {
+      const maxComment = await CommentModel.findOne().sort({ id: -1 });
+      const nextId = maxComment ? maxComment.id + 1 : 1;
+      const newComment = new CommentModel({
+        ...insertComment,
+        id: nextId,
+        likeCount: 0,
+        createdAt: new Date()
+      });
+      await newComment.save();
+      await ArticleModel.findOneAndUpdate(
+        { id: insertComment.articleId },
+        { $inc: { commentCount: 1 } }
+      );
+      return newComment.toObject() as Comment;
+    }, this.createInMemoryComment(insertComment));
+  }
+  
+  private createInMemoryComment(insertComment: InsertComment): Comment {
+    const nextId = inMemoryData.comments.length > 0 
+      ? Math.max(...inMemoryData.comments.map(c => c.id)) + 1 
+      : 1;
+    const newComment: Comment = {
+      ...insertComment,
+      id: nextId,
+      likeCount: 0,
+      createdAt: new Date(),
+      parentId: insertComment.parentId === undefined ? null : insertComment.parentId,
+    };
+    inMemoryData.comments.push(newComment);
+    const article = inMemoryData.articles.find(a => a.id === insertComment.articleId);
+    if (article) {
+      article.commentCount++;
+    }
+    return newComment;
+  }
+
+  async updateComment(id: number, commentData: Partial<Comment>): Promise<Comment | undefined> {
+    return safeMongoExecute(async () => {
+      const updatedComment = await CommentModel.findOneAndUpdate(
+        { id },
+        { $set: commentData },
+        { new: true }
+      );
+      return updatedComment ? updatedComment.toObject() as Comment : undefined;
+    }, undefined); 
+  }
+
+  async deleteComment(id: number): Promise<boolean> {
+    return safeMongoExecute(async () => {
+      const comment = await CommentModel.findOne({ id });
+      if (!comment) return false;
+
+      const result = await CommentModel.deleteOne({ id });
+      if (result.deletedCount === 1) {
+        await ArticleModel.findOneAndUpdate(
+          { id: comment.articleId },
+          { $inc: { commentCount: -1 } }
+        );
+        // Also delete associated comment likes
+        await CommentLikeModel.deleteMany({ commentId: id });
+        return true;
+      }
+      return false;
+    }, false);
+  }
+  
+  /**
+   * @deprecated This method is deprecated in favor of toggleCommentLike.
+   * It only increments the like count and does not track individual user likes.
+   */
+  async likeComment(commentId: number, userId: number): Promise<Comment | undefined> {
+    console.warn("DEPRECATED: likeComment is deprecated. Use toggleCommentLike instead. UserID (" + userId + ") is passed but not used for like tracking here.");
+    return safeMongoExecute(async () => {
+      const comment = await CommentModel.findOneAndUpdate(
+        { id: commentId },
+        { $inc: { likeCount: 1 } },
+        { new: true }
+      );
+      return comment ? comment.toObject() as Comment : undefined;
+    }, undefined);
+  }
+
+  async toggleCommentLike(commentId: number, userId: number): Promise<{ liked: boolean; newLikeCount: number; isLikedByCurrentUser: boolean } | null> {
+    return safeMongoExecute(async () => {
+      console.log(`Toggling like for comment ${commentId} by user ${userId}`);
+      const existingLike = await CommentLikeModel.findOne({ commentId, userId });
+      console.log(`Existing like found: ${!!existingLike}`);
+      
+      let liked: boolean;
+      let commentToUpdate;
+
+      if (existingLike) {
+        // Delete using commentId and userId instead of _id
+        console.log(`Deleting like record: commentId=${commentId}, userId=${userId}`);
+        await CommentLikeModel.deleteOne({ commentId, userId });
+        commentToUpdate = await CommentModel.findOneAndUpdate(
+          { id: commentId }, 
+          { $inc: { likeCount: -1 } }, 
+          { new: true }
+        );
+        liked = false;
+      } else {
+        console.log(`Creating new like record for: commentId=${commentId}, userId=${userId}`);
+        const maxCommentLike = await CommentLikeModel.findOne().sort({ id: -1 });
+        const nextCommentLikeId = maxCommentLike ? maxCommentLike.id + 1 : 1;
+        const newCommentLike = new CommentLikeModel({
+          id: nextCommentLikeId,
+          commentId,
+          userId,
+          createdAt: new Date()
+        });
+        await newCommentLike.save();
+        commentToUpdate = await CommentModel.findOneAndUpdate(
+          { id: commentId }, 
+          { $inc: { likeCount: 1 } }, 
+          { new: true }
+        );
+        liked = true;
+      }
+
+      if (!commentToUpdate) {
+        console.error(`Comment with id ${commentId} not found during like/unlike operation.`);
+        return null;
+      }
+      
+      // Verify like status after operation
+      const likeCheck = await CommentLikeModel.findOne({ commentId, userId });
+      console.log(`After operation, like exists: ${!!likeCheck}`);
+      
+      return { 
+        liked, 
+        newLikeCount: commentToUpdate.likeCount,
+        isLikedByCurrentUser: !!likeCheck
+      };
+    }, null);
+  }
+  
+  // Like methods
+  async getArticleLikes(articleId: number): Promise<Like[]> {
+    return safeMongoExecute(async () => {
+      const likes = await LikeModel.find({ articleId });
+      return likes.map(like => like.toObject());
+    }, inMemoryData.likes.filter(like => like.articleId === articleId));
+  }
+  
+  async getUserLike(articleId: number, userId: number): Promise<Like | undefined> {
+    return safeMongoExecute(async () => {
+      const like = await LikeModel.findOne({ articleId, userId });
+      return like ? like.toObject() : undefined;
+    }, inMemoryData.likes.find(like => like.articleId === articleId && like.userId === userId));
+  }
+  
+  async createLike(insertLike: InsertLike): Promise<Like> {
+    return safeMongoExecute(async () => {
+      // Check if user already liked this article
+      const existingLike = await LikeModel.findOne({
+        articleId: insertLike.articleId,
+        userId: insertLike.userId
+      });
+      
+      if (existingLike) {
+        return existingLike.toObject();
+      }
+      
+      // Get the next ID
+      const maxLike = await LikeModel.findOne().sort({ id: -1 });
+      const nextId = maxLike ? maxLike.id + 1 : 1;
+      
+      const newLike = new LikeModel({
+        ...insertLike,
+        id: nextId,
+        createdAt: new Date()
+      });
+      
+      await newLike.save();
+      
+      // Increment article like count
+      await ArticleModel.findOneAndUpdate(
+        { id: insertLike.articleId },
+        { $inc: { likeCount: 1 } }
+      );
+      
+      return newLike.toObject();
+    }, this.createInMemoryLike(insertLike));
+  }
+  
+  async deleteLike(articleId: number, userId: number): Promise<boolean> {
+    return safeMongoExecute(async () => {
+      const result = await LikeModel.deleteOne({ articleId, userId });
+      
+      if (result.deletedCount === 1) {
+        // Decrement article like count
+        await ArticleModel.findOneAndUpdate(
+          { id: articleId },
+          { $inc: { likeCount: -1 } }
+        );
+        
+        return true;
+      }
+      
+      return false;
+    }, false);
+  }
+  
+  private createInMemoryLike(insertLike: InsertLike): Like {
+    const nextId = inMemoryData.likes.length > 0 
+      ? Math.max(...inMemoryData.likes.map(l => l.id)) + 1 
+      : 1;
+    
+    const newLike: Like = {
+      ...insertLike,
+      id: nextId,
+      createdAt: new Date()
+    };
+    
+    inMemoryData.likes.push(newLike);
+    
+    // Update article like count in memory
+    const article = inMemoryData.articles.find(a => a.id === insertLike.articleId);
+    if (article) {
+      article.likeCount++;
+    }
+    
+    return newLike;
+  }
+
   // Add this method in the User methods section
   async getUsersWithCommentCounts(limit: number = 5): Promise<(User & { commentCount: number; isPremium?: boolean })[]> {
     return safeMongoExecute(async () => {
@@ -650,5 +934,196 @@ export class MongoStorage implements IStorage {
       .sort((a, b) => b.commentCount - a.commentCount)
       .slice(0, limit)
     );
+  }
+
+  // User dashboard methods
+  async getUserLikes(userId: number): Promise<Like[]> {
+    return safeMongoExecute(async () => {
+      const likes = await LikeModel.find({ userId });
+      return likes.map(like => like.toObject());
+    }, inMemoryData.likes.filter(like => like.userId === userId));
+  }
+  
+  async getUserComments(userId: number): Promise<Comment[]> {
+    return safeMongoExecute(async () => {
+      const comments = await CommentModel.find({ userId });
+      return comments.map(comment => comment.toObject());
+    }, inMemoryData.comments.filter(comment => comment.userId === userId));
+  }
+
+  // Newsletter methods
+  async getNewsletterSubscribers(): Promise<Newsletter[]> {
+    return safeMongoExecute(async () => {
+      const subscribers = await NewsletterModel.find();
+      return subscribers.map(subscriber => subscriber.toObject());
+    }, inMemoryData.newsletters);
+  }
+  
+  async getNewsletterSubscriber(email: string): Promise<Newsletter | undefined> {
+    return safeMongoExecute(async () => {
+      const subscriber = await NewsletterModel.findOne({ email });
+      return subscriber ? subscriber.toObject() : undefined;
+    }, inMemoryData.newsletters.find(newsletter => newsletter.email === email));
+  }
+  
+  async createNewsletterSubscriber(newsletter: InsertNewsletter): Promise<Newsletter> {
+    return safeMongoExecute(async () => {
+      // Find the highest ID currently in use
+      const highestId = await NewsletterModel.findOne().sort({ id: -1 });
+      const newId = highestId ? highestId.id + 1 : 1;
+      
+      const newSubscriber = new NewsletterModel({
+        ...newsletter,
+        id: newId,
+        // Add a default name if not provided
+        createdAt: new Date()
+      });
+      
+      await newSubscriber.save();
+      return newSubscriber.toObject();
+    }, {
+      id: inMemoryData.newsletters.length > 0 
+        ? Math.max(...inMemoryData.newsletters.map(n => n.id)) + 1 
+        : 1,
+      ...newsletter,
+      createdAt: new Date()
+    } as Newsletter);
+  }
+  
+  async deleteNewsletterSubscriber(id: number): Promise<boolean> {
+    return safeMongoExecute(async () => {
+      const result = await NewsletterModel.deleteOne({ id });
+      return result.deletedCount > 0;
+    }, (() => {
+      const index = inMemoryData.newsletters.findIndex(n => n.id === id);
+      if (index !== -1) {
+        inMemoryData.newsletters.splice(index, 1);
+        return true;
+      }
+      return false;
+    })());
+  }
+
+  // Advertisement methods
+  async getAdvertisements(): Promise<Advertisement[]> {
+    return safeMongoExecute(async () => {
+      const advertisements = await AdvertisementModel.find();
+      return advertisements.map(ad => ad.toObject());
+    }, inMemoryData.advertisements);
+  }
+  
+  async getAdvertisementsByPosition(position: string): Promise<Advertisement[]> {
+    const now = new Date();
+    
+    return safeMongoExecute(async () => {
+      const advertisements = await AdvertisementModel.find({
+        position,
+        isActive: true,
+        startDate: { $lte: now },
+        endDate: { $gte: now }
+      }).sort({ priority: -1 });
+      
+      return advertisements.map(ad => ad.toObject());
+    }, inMemoryData.advertisements.filter(ad => 
+      ad.position === position && 
+      ad.isActive && 
+      new Date(ad.startDate) <= now && 
+      new Date(ad.endDate) >= now
+    ).sort((a, b) => b.priority - a.priority));
+  }
+  
+  async getAdvertisement(id: number): Promise<Advertisement | undefined> {
+    return safeMongoExecute(async () => {
+      const advertisement = await AdvertisementModel.findOne({ id });
+      return advertisement ? advertisement.toObject() : undefined;
+    }, inMemoryData.advertisements.find(ad => ad.id === id));
+  }
+  
+  async createAdvertisement(insertAdvertisement: InsertAdvertisement): Promise<Advertisement> {
+    return safeMongoExecute(async () => {
+      // Get the next ID
+      const maxAd = await AdvertisementModel.findOne().sort({ id: -1 });
+      const nextId = maxAd ? maxAd.id + 1 : 1;
+      
+      const now = new Date();
+      const newAdvertisement = new AdvertisementModel({ 
+        ...insertAdvertisement, 
+        id: nextId,
+        isActive: insertAdvertisement.isActive ?? true,
+        priority: insertAdvertisement.priority ?? 1,
+        impressions: 0,
+        clicks: 0,
+        createdAt: now,
+        updatedAt: now
+      });
+      
+      await newAdvertisement.save();
+      return newAdvertisement.toObject();
+    }, this.createInMemoryAdvertisement(insertAdvertisement));
+  }
+  
+  private createInMemoryAdvertisement(insertAdvertisement: InsertAdvertisement): Advertisement {
+    const nextId = inMemoryData.advertisements.length > 0 
+      ? Math.max(...inMemoryData.advertisements.map(ad => ad.id)) + 1 
+      : 1;
+    
+    const now = new Date();
+    const newAdvertisement: Advertisement = {
+      ...insertAdvertisement,
+      id: nextId,
+      isActive: insertAdvertisement.isActive ?? true,
+      priority: insertAdvertisement.priority ?? 1,
+      impressions: 0,
+      clicks: 0,
+      createdAt: now,
+      updatedAt: now
+    };
+    
+    inMemoryData.advertisements.push(newAdvertisement);
+    return newAdvertisement;
+  }
+  
+  async updateAdvertisement(id: number, advertisementData: Partial<Advertisement>): Promise<Advertisement | undefined> {
+    return safeMongoExecute(async () => {
+      // Set the updated time
+      advertisementData.updatedAt = new Date();
+      
+      const updatedAdvertisement = await AdvertisementModel.findOneAndUpdate(
+        { id },
+        { $set: advertisementData },
+        { new: true }
+      );
+      
+      return updatedAdvertisement ? updatedAdvertisement.toObject() : undefined;
+    }, undefined);
+  }
+  
+  async deleteAdvertisement(id: number): Promise<boolean> {
+    return safeMongoExecute(async () => {
+      const result = await AdvertisementModel.deleteOne({ id });
+      return result.deletedCount > 0;
+    }, false);
+  }
+  
+  async trackAdvertisementImpression(id: number): Promise<boolean> {
+    return safeMongoExecute(async () => {
+      const result = await AdvertisementModel.updateOne(
+        { id },
+        { $inc: { impressions: 1 } }
+      );
+      
+      return result.modifiedCount > 0;
+    }, false);
+  }
+  
+  async trackAdvertisementClick(id: number): Promise<boolean> {
+    return safeMongoExecute(async () => {
+      const result = await AdvertisementModel.updateOne(
+        { id },
+        { $inc: { clicks: 1 } }
+      );
+      
+      return result.modifiedCount > 0;
+    }, false);
   }
 } 

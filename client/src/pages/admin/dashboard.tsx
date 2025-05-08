@@ -157,6 +157,17 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Active Ads</p>
+              <h3 className="text-2xl font-bold">3</h3>
+            </div>
+            <div className="w-12 h-12 bg-[#FF8042]/20 flex items-center justify-center rounded-full">
+              <i className="fas fa-ad text-xl text-[#FF8042]"></i>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
@@ -247,7 +258,7 @@ export default function AdminDashboard() {
         <TabsContent value="quickActions">
           <Card>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Link href="/admin/articles/create">
                   <Button className="w-full bg-secondary text-white h-auto py-4">
                     <i className="fas fa-plus-circle mr-2"></i>
@@ -272,6 +283,15 @@ export default function AdminDashboard() {
                     <div>
                       <div className="font-bold">Manage Categories</div>
                       <div className="text-xs opacity-80">Update news categories</div>
+                    </div>
+                  </Button>
+                </Link>
+                <Link href="/admin/manage-advertisements">
+                  <Button className="w-full bg-secondary text-white h-auto py-4" variant="outline">
+                    <i className="fas fa-ad mr-2"></i>
+                    <div>
+                      <div className="font-bold">Manage Advertisements</div>
+                      <div className="text-xs opacity-80">Update ad placements</div>
                     </div>
                   </Button>
                 </Link>

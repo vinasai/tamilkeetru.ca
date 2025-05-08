@@ -12,7 +12,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { Card, CardContent } from "@/components/ui/card";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +24,29 @@ export default function HeroSlider() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
+  const [likedArticles, setLikedArticles] = useState<Record<number, boolean>>({});
+
+  // Check which articles the user has liked
+  useEffect(() => {
+    if (!user || !featuredArticles) return;
+    
+    const checkLikeStatus = async () => {
+      const likes: Record<number, boolean> = {};
+      
+      for (const article of featuredArticles) {
+        try {
+          const res = await fetch(`/api/articles/${article.id}/likes/${user.id}`);
+          likes[article.id] = res.ok;
+        } catch (error) {
+          console.error(`Error checking like status for article ${article.id}:`, error);
+        }
+      }
+      
+      setLikedArticles(likes);
+    };
+    
+    checkLikeStatus();
+  }, [user, featuredArticles]);
 
   useEffect(() => {
     if (!featuredArticles || featuredArticles.length <= 1) return;
@@ -35,7 +58,7 @@ export default function HeroSlider() {
     return () => clearInterval(interval);
   }, [featuredArticles]);
 
-  const handleLike = async (articleId: number, currentLikes: number) => {
+  const handleLike = async (articleId: number) => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -46,15 +69,30 @@ export default function HeroSlider() {
     }
 
     try {
+      if (likedArticles[articleId]) {
+        // Unlike the article
+        await apiRequest("DELETE", `/api/articles/${articleId}/like/${user.id}`);
+        setLikedArticles(prev => ({ ...prev, [articleId]: false }));
+        toast({
+          title: "Success!",
+          description: "You unliked this article."
+        });
+      } else {
+        // Like the article
       await apiRequest("POST", `/api/articles/${articleId}/like`, { userId: user.id });
+        setLikedArticles(prev => ({ ...prev, [articleId]: true }));
       toast({
         title: "Success!",
         description: "You liked this article."
       });
+      }
+      
+      // Refresh featured articles
+      queryClient.invalidateQueries({ queryKey: ["/api/articles/featured"] });
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to like article",
+        description: error instanceof Error ? error.message : likedArticles[articleId] ? "Failed to unlike article" : "Failed to like article",
         variant: "destructive"
       });
     }
@@ -115,17 +153,17 @@ export default function HeroSlider() {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        className="text-gray-500 hover:text-secondary mr-4"
-                        onClick={() => handleLike(article.id, article.likeCount)}
+                        className={`${likedArticles[article.id] ? 'text-red-500' : 'text-gray-500'} hover:text-black mr-4`}
+                        onClick={() => handleLike(article.id)}
                       >
-                        <i className="far fa-heart mr-1"></i> {article.likeCount}
+                        <i className={`${likedArticles[article.id] ? 'fas' : 'far'} fa-heart mr-1`}></i> {article.likeCount}
                       </Button>
                       <Link href={`/article/${article.slug}#comments`}>
-                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-secondary mr-4">
+                        <Button variant="ghost" size="sm" className="text-gray-500 hover:text-black mr-4">
                           <i className="far fa-comment mr-1"></i> {article.commentCount}
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="sm" className="text-gray-500 hover:text-secondary">
+                      <Button variant="ghost" size="sm" className="text-gray-500 hover:text-black">
                         <i className="fas fa-share-alt mr-1"></i> Share
                       </Button>
                     </div>

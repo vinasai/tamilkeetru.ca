@@ -5,15 +5,50 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useEffect, useState } from "react";
 
 interface ArticleCardProps {
   article: ArticleWithDetails;
   variant?: "full" | "compact" | "list-item" | "horizontal";
 }
 
+// Helper function to get category color
+function getCategoryColor(category: string): string {
+  const categoryMap: Record<string, string> = {
+    'Technology': 'bg-secondary',
+    'Politics': 'bg-secondary',
+    'Business': 'bg-secondary',
+    'Sports': 'bg-[#28A745]',
+    'Entertainment': 'bg-[#17a2b8]',
+    'Health': 'bg-[#dc3545]',
+    'Science': 'bg-[#6f42c1]',
+    'World': 'bg-[#fd7e14]',
+    'Opinion': 'bg-[#6c757d]'
+  };
+
+  return categoryMap[category] || 'bg-secondary';
+}
+
 export default function ArticleCard({ article, variant = "full" }: ArticleCardProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isLiked, setIsLiked] = useState(false);
+
+  // Check if the current user has liked this article
+  useEffect(() => {
+    if (user) {
+      const checkLikeStatus = async () => {
+        try {
+          const res = await fetch(`/api/articles/${article.id}/likes/${user.id}`);
+          setIsLiked(res.ok);
+        } catch (error) {
+          console.error("Error checking like status:", error);
+        }
+      };
+      
+      checkLikeStatus();
+    }
+  }, [user, article.id]);
 
   const handleLike = async () => {
     if (!user) {
@@ -26,17 +61,31 @@ export default function ArticleCard({ article, variant = "full" }: ArticleCardPr
     }
 
     try {
+      if (isLiked) {
+        // Unlike the article
+        await apiRequest("DELETE", `/api/articles/${article.id}/like/${user.id}`);
+        setIsLiked(false);
+        toast({
+          title: "Success!",
+          description: "You unliked this article."
+        });
+      } else {
+        // Like the article
       await apiRequest("POST", `/api/articles/${article.id}/like`, { userId: user.id });
+        setIsLiked(true);
+        toast({
+          title: "Success!",
+          description: "You liked this article."
+        });
+      }
+      
+      // Refresh articles data
       queryClient.invalidateQueries({ queryKey: ["/api/articles"] });
       queryClient.invalidateQueries({ queryKey: [`/api/articles/${article.id}`] });
-      toast({
-        title: "Success!",
-        description: "You liked this article."
-      });
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to like article",
+        description: error instanceof Error ? error.message : isLiked ? "Failed to unlike article" : "Failed to like article",
         variant: "destructive"
       });
     }
@@ -110,10 +159,10 @@ export default function ArticleCard({ article, variant = "full" }: ArticleCardPr
               </div>
               <div className="flex items-center space-x-3">
                 <span
-                  className="text-gray-500 hover:text-secondary cursor-pointer"
+                  className={`${isLiked ? 'text-red-500' : 'text-gray-500'} hover:text-secondary cursor-pointer`}
                   onClick={handleLike}
                 >
-                  <i className="far fa-heart mr-1"></i> {article.likeCount}
+                  <i className={`${isLiked ? 'fas' : 'far'} fa-heart mr-1`}></i> {article.likeCount}
                 </span>
                 <Link href={`/article/${article.slug}#comments`}>
                   <span><i className="far fa-comment mr-1"></i> {article.commentCount}</span>
@@ -154,10 +203,10 @@ export default function ArticleCard({ article, variant = "full" }: ArticleCardPr
           </div>
           <div className="flex items-center space-x-3">
             <span
-              className="text-gray-500 hover:text-secondary cursor-pointer"
+              className={`${isLiked ? 'text-red-500' : 'text-gray-500'} hover:text-secondary cursor-pointer`}
               onClick={handleLike}
             >
-              <i className="far fa-heart mr-1"></i> {article.likeCount}
+              <i className={`${isLiked ? 'fas' : 'far'} fa-heart mr-1`}></i> {article.likeCount}
             </span>
             <Link href={`/article/${article.slug}#comments`}>
               <span><i className="far fa-comment mr-1"></i> {article.commentCount}</span>
@@ -167,20 +216,4 @@ export default function ArticleCard({ article, variant = "full" }: ArticleCardPr
       </div>
     </div>
   );
-}
-
-function getCategoryColor(category: string): string {
-  const categoryMap: Record<string, string> = {
-    'Technology': 'bg-secondary',
-    'Politics': 'bg-secondary',
-    'Business': 'bg-secondary',
-    'Sports': 'bg-[#28A745]',
-    'Entertainment': 'bg-[#17a2b8]',
-    'Health': 'bg-[#dc3545]',
-    'Science': 'bg-[#6f42c1]',
-    'World': 'bg-[#fd7e14]',
-    'Opinion': 'bg-[#6c757d]'
-  };
-
-  return categoryMap[category] || 'bg-secondary';
 }

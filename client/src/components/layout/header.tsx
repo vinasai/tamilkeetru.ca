@@ -86,7 +86,7 @@ export default function Header() {
     { name: "TECHNOLOGY", path: "/?category=technology" },
     { name: "HEALTH", path: "/?category=health" },
     { name: "SCIENCE", path: "/?category=science" },
-    { name: "OPINION", path: "/?category=opinion" }
+    // { name: "OPINION", path: "/?category=opinion" }
   ];
 
   return (
@@ -99,9 +99,9 @@ export default function Header() {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </span>
             <Dialog>
-              <DialogTrigger asChild>
+              {/* <DialogTrigger asChild>
                 <button className="hover:underline text-white">Subscribe</button>
-              </DialogTrigger>
+              </DialogTrigger> */}
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Subscribe to Tamil Keetru</DialogTitle>
@@ -343,7 +343,7 @@ export default function Header() {
                   <DropdownMenuItem 
                     onClick={handleLogout} 
                     disabled={logoutMutation.isPending}
-                    className="cursor-pointer text-red-500 focus:text-red-900"
+                    className="cursor-pointer text-red-500 focus:text-black"
                   >
                     {logoutMutation.isPending ? (
                       <i className="fas fa-spinner fa-spin mr-2"></i>

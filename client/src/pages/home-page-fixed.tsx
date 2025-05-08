@@ -9,6 +9,8 @@ import CategorySection from "@/components/articles/category-section";
 import NewsletterForm from "@/components/sidebar/newsletter-form";
 import CategoriesWidget from "@/components/sidebar/categories-widget";
 import PopularNews from "@/components/sidebar/popular-news";
+import OffRoadSection from "@/components/off-road-section";
+import AdDisplay from "@/components/advertisements/ad-display";
 import { Button } from "@/components/ui/button";
 import { 
   Select,
@@ -26,6 +28,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { useScrollTop } from "@/hooks/use-scroll-top";
 import TopSubscribers from "@/components/sidebar/top-subscribers";
+
+// Add the Advertisement interface
+interface Advertisement {
+  id: number;
+  position: string;
+  isActive: boolean;
+}
 
 export default function HomePage() {
   const [, setLocation] = useLocation();
@@ -62,6 +71,22 @@ export default function HomePage() {
       searchQuery ? `search=${searchQuery}` : ''
     ],
   });
+
+  // Check if home-page advertisements are available
+  const { data: homePageAds } = useQuery<Advertisement[]>({
+    queryKey: ['/api/advertisements', 'home-page'],
+    queryFn: async () => {
+      const response = await fetch('/api/advertisements?position=home-page');
+      if (!response.ok) {
+        throw new Error('Failed to fetch advertisements');
+      }
+      return response.json();
+    },
+    staleTime: 300000, // 5 minutes
+  });
+  
+  // Determine if there are active ads for the home-page position
+  const hasHomePageAds = homePageAds && homePageAds.length > 0;
 
   useEffect(() => {
     console.log("articles", articles);
@@ -327,13 +352,10 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Advertisement Banner - only on homepage */}
-        {!categorySlug && !searchQuery && (
-          <div className="mb-8 bg-gray-200 rounded-md p-3 text-center">
-            <div className="border border-dashed border-gray-400 py-8 px-4">
-              <p className="text-gray-500 font-bold text-lg">ADVERTISEMENT</p>
-              <p className="text-gray-500 text-sm">728x90 Banner Ad</p>
-            </div>
+        {/* Advertisement - Full Width */}
+        {hasHomePageAds && (
+          <div className="mb-12">
+            <AdDisplay position="home-page" />
           </div>
         )}
 
@@ -351,120 +373,160 @@ export default function HomePage() {
                 </button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Featured Left */}
-                <div className="md:col-span-1">
-                  {articles && articles.length > 3 && (
-                    <div className="relative h-full min-h-[250px] group overflow-hidden rounded-md shadow-md">
-                      <img 
-                        src={articles[3].coverImage} 
-                        alt={articles[3].title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
+              {isLoading ? (
+                /* Loading Skeleton for Trending Now section */
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-pulse">
+                  {/* Left Column Skeleton */}
+                  <div className="md:col-span-1">
+                    <div className="relative h-[250px] rounded-md shadow-md overflow-hidden bg-gray-200">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-4">
                         <div className="mb-2">
-                          <span className="bg-secondary text-white text-xs px-2 py-1 rounded">
-                            {articles[3].category.name}
-                          </span>
+                          <div className="bg-gray-300 h-5 w-16 rounded"></div>
                         </div>
-                        <h3 className="text-white font-semibold mb-1">
-                          <Link href={`/article/${articles[3].slug}`} className="hover:text-secondary transition-colors">
-                            {articles[3].title}
-                          </Link>
-                        </h3>
-                        <div className="text-white/70 text-xs">
-                          <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[3].createdAt).toLocaleDateString()}</span>
+                        <div className="h-5 bg-gray-300 rounded w-3/4 mb-1"></div>
+                        <div className="h-5 bg-gray-300 rounded w-1/2 mb-3"></div>
+                        <div className="h-3 bg-gray-300 rounded w-1/4"></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Center Column Skeleton */}
+                  <div className="md:col-span-2">
+                    <div className="relative h-[250px] rounded-md shadow-md overflow-hidden bg-gray-200">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-6">
+                        <div className="mb-2">
+                          <div className="bg-gray-300 h-5 w-20 rounded mr-2 inline-block"></div>
+                          <div className="bg-gray-300 h-5 w-20 rounded inline-block"></div>
+                        </div>
+                        <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
+                        <div className="h-6 bg-gray-300 rounded w-1/2 mb-4"></div>
+                        <div className="h-4 bg-gray-300 rounded w-full mb-3"></div>
+                        <div className="flex space-x-4">
+                          <div className="h-3 bg-gray-300 rounded w-20"></div>
+                          <div className="h-3 bg-gray-300 rounded w-20"></div>
+                          <div className="h-3 bg-gray-300 rounded w-20"></div>
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
-                
-                {/* Featured Center */}
-                <div className="md:col-span-2">
-                  {articles && articles.length > 0 && (
-                    <div className="relative h-full min-h-[250px] group overflow-hidden rounded-md shadow-md">
-                      <img 
-                        src={articles[0].coverImage} 
-                        alt={articles[0].title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent flex flex-col justify-end p-6">
+                  </div>
+                  
+                  {/* Right Column Skeleton */}
+                  <div className="md:col-span-1">
+                    <div className="relative h-[250px] rounded-md shadow-md overflow-hidden bg-gray-200">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex flex-col justify-end p-4">
                         <div className="mb-2">
-                          <span className="bg-secondary text-white text-xs px-2 py-1 rounded">
-                            {articles[0].category.name}
-                          </span>
-                          {articles[0].isBreaking && (
-                            <span className="bg-red-600 text-white text-xs px-2 py-1 rounded ml-2">
-                              BREAKING
+                          <div className="bg-gray-300 h-5 w-16 rounded"></div>
+                        </div>
+                        <div className="h-5 bg-gray-300 rounded w-3/4 mb-1"></div>
+                        <div className="h-5 bg-gray-300 rounded w-1/2 mb-3"></div>
+                        <div className="h-3 bg-gray-300 rounded w-1/4"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Featured Left */}
+                  <div className="md:col-span-1">
+                    {articles && articles.length > 3 && (
+                      <div className="relative h-full min-h-[250px] group overflow-hidden rounded-md shadow-md">
+                        <img 
+                          src={articles[3].coverImage} 
+                          alt={articles[3].title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
+                          <div className="mb-2">
+                            <span className="bg-secondary text-white text-xs px-2 py-1 rounded">
+                              {articles[3].category.name}
                             </span>
-                          )}
-                        </div>
-                        <h3 className="text-white font-bold text-xl md:text-2xl mb-2">
-                          <Link href={`/article/${articles[0].slug}`} className="hover:text-secondary transition-colors">
-                            {articles[0].title}
-                          </Link>
-                        </h3>
-                        <p className="text-white/80 mb-2 text-sm line-clamp-2">
-                          {articles[0].excerpt}
-                        </p>
-                        <div className="text-white/70 text-xs flex items-center space-x-4">
-                          <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[0].createdAt).toLocaleDateString()}</span>
-                          <span className="flex items-center"><i className="far fa-user mr-1"></i> {articles[0].author.username}</span>
-                          <span className="flex items-center"><i className="far fa-comment mr-1"></i> {articles[0].commentCount}</span>
+                          </div>
+                          <h3 className="text-white font-semibold mb-1">
+                            <Link href={`/article/${articles[3].slug}`} className="hover:text-secondary transition-colors">
+                              {articles[3].title}
+                            </Link>
+                          </h3>
+                          <div className="text-white/70 text-xs">
+                            <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[3].createdAt).toLocaleDateString()}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Featured Right */}
-                <div className="md:col-span-1">
-                  {articles && articles.length > 4 && (
-                    <div className="relative h-full min-h-[250px] group overflow-hidden rounded-md shadow-md">
-                      <img 
-                        src={articles[4].coverImage} 
-                        alt={articles[4].title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
-                        <div className="mb-2">
-                          <span className="bg-secondary text-white text-xs px-2 py-1 rounded">
-                            {articles[4].category.name}
-                          </span>
-                        </div>
-                        <h3 className="text-white font-semibold mb-1">
-                          <Link href={`/article/${articles[4].slug}`} className="hover:text-secondary transition-colors">
-                            {articles[4].title}
-                          </Link>
-                        </h3>
-                        <div className="text-white/70 text-xs">
-                          <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[4].createdAt).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                  
+                  {/* Featured Center */}
+                  <div className="md:col-span-2">
+                    {articles && articles.length > 0 && (
+                      <div className="relative h-full min-h-[250px] group overflow-hidden rounded-md shadow-md">
+                        <img 
+                          src={articles[0].coverImage} 
+                          alt={articles[0].title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent flex flex-col justify-end p-6">
+                          <div className="mb-2">
+                            <span className="bg-secondary text-white text-xs px-2 py-1 rounded">
+                              {articles[0].category.name}
+                            </span>
+                            {articles[0].isBreaking && (
+                              <span className="bg-red-600 text-white text-xs px-2 py-1 rounded ml-2">
+                                BREAKING
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="text-white font-bold text-xl md:text-2xl mb-2">
+                            <Link href={`/article/${articles[0].slug}`} className="hover:text-secondary transition-colors">
+                              {articles[0].title}
+                            </Link>
+                          </h3>
+                          <p className="text-white/80 mb-2 text-sm line-clamp-2">
+                            {articles[0].excerpt}
+                          </p>
+                          <div className="text-white/70 text-xs flex items-center space-x-4">
+                            <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[0].createdAt).toLocaleDateString()}</span>
+                            <span className="flex items-center"><i className="far fa-user mr-1"></i> {articles[0].author.username}</span>
+                            <span className="flex items-center"><i className="far fa-comment mr-1"></i> {articles[0].commentCount}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  
+                  {/* Featured Right */}
+                  <div className="md:col-span-1">
+                    {articles && articles.length > 4 && (
+                      <div className="relative h-full min-h-[250px] group overflow-hidden rounded-md shadow-md">
+                        <img 
+                          src={articles[4].coverImage} 
+                          alt={articles[4].title}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
+                          <div className="mb-2">
+                            <span className="bg-secondary text-white text-xs px-2 py-1 rounded">
+                              {articles[4].category.name}
+                            </span>
+                          </div>
+                          <h3 className="text-white font-semibold mb-1">
+                            <Link href={`/article/${articles[4].slug}`} className="hover:text-secondary transition-colors">
+                              {articles[4].title}
+                            </Link>
+                          </h3>
+                          <div className="text-white/70 text-xs">
+                            <span className="flex items-center"><i className="far fa-clock mr-1"></i> {new Date(articles[4].createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             
-            {/* Advertisement - Full Width */}
-            <div className="mb-12 rounded-md overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white flex flex-col md:flex-row items-center justify-between">
-                <div className="mb-4 md:mb-0 text-center md:text-left">
-                  <h3 className="text-2xl font-bold mb-2">Subscribe for Premium Access</h3>
-                  <p className="max-w-md text-white/80">Get unlimited access to all articles, premium features and exclusive content.</p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button className="bg-white text-purple-700 font-bold py-3 px-6 rounded-md hover:bg-white/90 transition-colors">
-                    Try Free for 7 Days
-                  </button>
-                  <button className="bg-transparent border-2 border-white text-white font-bold py-3 px-6 rounded-md hover:bg-white/10 transition-colors">
-                    Learn More
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* Advertisement Banner - only on homepage */}
+            {!categorySlug && !searchQuery && hasHomePageAds && (
+              <AdDisplay position="home-page" />
+            )}
 
             {/* Three Column Grid Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -482,10 +544,10 @@ export default function HomePage() {
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Main Featured Article */}
+                    {/* Article 1 */}
                     {articles && articles.length > 1 && (
-                      <div className="md:row-span-2 bg-white rounded-md shadow-md overflow-hidden h-auto">
-                        <div className="relative h-48 md:h-64 overflow-hidden">
+                      <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
+                        <div className="h-40 overflow-hidden">
                           <img 
                             src={articles[1].coverImage} 
                             alt={articles[1].title}
@@ -497,24 +559,25 @@ export default function HomePage() {
                             </span>
                           </div>
                         </div>
-                        <div className="p-5">
-                          <h3 className="font-bold text-xl mb-2">
+                        <div className="p-4 flex flex-col flex-grow">
+                          <h3 className="font-semibold mb-2">
                             <Link href={`/article/${articles[1].slug}`} className="hover:text-secondary transition-colors">
                               {articles[1].title}
                             </Link>
                           </h3>
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                             {articles[1].excerpt}
                           </p>
-                          <div className="flex justify-between text-gray-500 text-xs">
+                          <div className="mt-auto text-gray-500 text-xs">
                             <span><i className="far fa-clock mr-1"></i> {new Date(articles[1].createdAt).toLocaleDateString()}</span>
+                            <span className="mx-2">•</span>
                             <span><i className="far fa-comments mr-1"></i> {articles[1].commentCount}</span>
                           </div>
                         </div>
                       </div>
                     )}
                     
-                    {/* Smaller Articles */}
+                    {/* Article 2 */}
                     {articles && articles.length > 5 && (
                       <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
                         <div className="h-40 overflow-hidden">
@@ -523,21 +586,31 @@ export default function HomePage() {
                             alt={articles[5].title}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                           />
+                          <div className="absolute top-3 left-3">
+                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                              {articles[5].category.name}
+                            </span>
+                          </div>
                         </div>
                         <div className="p-4 flex flex-col flex-grow">
-                          <span className="text-xs text-secondary mb-1">{articles[5].category.name}</span>
                           <h3 className="font-semibold mb-2">
                             <Link href={`/article/${articles[5].slug}`} className="hover:text-secondary transition-colors">
                               {articles[5].title}
                             </Link>
                           </h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                            {articles[5].excerpt}
+                          </p>
                           <div className="mt-auto text-gray-500 text-xs">
                             <span><i className="far fa-clock mr-1"></i> {new Date(articles[5].createdAt).toLocaleDateString()}</span>
+                            <span className="mx-2">•</span>
+                            <span><i className="far fa-comments mr-1"></i> {articles[5].commentCount || 0}</span>
                           </div>
                         </div>
                       </div>
                     )}
                     
+                    {/* Article 3 */}
                     {articles && articles.length > 6 && (
                       <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
                         <div className="h-40 overflow-hidden">
@@ -546,16 +619,58 @@ export default function HomePage() {
                             alt={articles[6].title}
                             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                           />
+                          <div className="absolute top-3 left-3">
+                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                              {articles[6].category.name}
+                            </span>
+                          </div>
                         </div>
                         <div className="p-4 flex flex-col flex-grow">
-                          <span className="text-xs text-secondary mb-1">{articles[6].category.name}</span>
                           <h3 className="font-semibold mb-2">
                             <Link href={`/article/${articles[6].slug}`} className="hover:text-secondary transition-colors">
                               {articles[6].title}
                             </Link>
                           </h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                            {articles[6].excerpt}
+                          </p>
                           <div className="mt-auto text-gray-500 text-xs">
                             <span><i className="far fa-clock mr-1"></i> {new Date(articles[6].createdAt).toLocaleDateString()}</span>
+                            <span className="mx-2">•</span>
+                            <span><i className="far fa-comments mr-1"></i> {articles[6].commentCount || 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Article 4 */}
+                    {articles && articles.length > 7 && (
+                      <div className="bg-white rounded-md shadow-md overflow-hidden flex flex-col h-full">
+                        <div className="h-40 overflow-hidden">
+                          <img 
+                            src={articles[7].coverImage} 
+                            alt={articles[7].title}
+                            className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+                          />
+                          <div className="absolute top-3 left-3">
+                            <span className="bg-secondary text-white text-xs px-3 py-1 rounded-full">
+                              {articles[7].category.name}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="p-4 flex flex-col flex-grow">
+                          <h3 className="font-semibold mb-2">
+                            <Link href={`/article/${articles[7].slug}`} className="hover:text-secondary transition-colors">
+                              {articles[7].title}
+                            </Link>
+                          </h3>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                            {articles[7].excerpt}
+                          </p>
+                          <div className="mt-auto text-gray-500 text-xs">
+                            <span><i className="far fa-clock mr-1"></i> {new Date(articles[7].createdAt).toLocaleDateString()}</span>
+                            <span className="mx-2">•</span>
+                            <span><i className="far fa-comments mr-1"></i> {articles[7].commentCount || 0}</span>
                           </div>
                         </div>
                       </div>
@@ -659,6 +774,11 @@ export default function HomePage() {
                 <CategoriesWidget />
               </div>
             </div>
+            
+            {/* "Off Road" Section - Full Width */}
+            {!categorySlug && !searchQuery && (
+              <OffRoadSection />
+            )}
           </>
         )}
       </div>
